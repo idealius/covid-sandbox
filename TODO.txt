@@ -1,0 +1,28 @@
+covid sandbox
+
+using JSXGraph?
+research branch, fork, rollback of GIT
+create project
+decide license
+
+features:
+
+1. loading & displaying data
+
+2. using DOM additional graphs
+
+3. variable-day rolling average
+
+4. linear regression for section of graph including sigma of area under line
+	-user chosen % threshold
+	-user ability to add waves at certain points of certain sizes
+	-sum of user chosen waves + the original data
+		-for all graphs or for one graph
+
+5. save graphs to cookies or something
+
+
+Extras:
+
+Convert to Excel
+Convert to Desmos
