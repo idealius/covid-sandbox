@@ -1,5 +1,7 @@
 covid sandbox
 
+probably have to install node or something to get CORS not to error out.
+
 using JSXGraph?
 research branch, fork, rollback of GIT
 create project

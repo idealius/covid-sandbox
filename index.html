@@ -8,18 +8,35 @@
   <meta name="description" content="Covid Sandbox">
   <meta name="author" content="Leo Idler">
 
-  <link rel="stylesheet" href="css/styles.css?v=1.0">
+  <!--<link rel="stylesheet" href="css/styles.css?v=1.0">-->
 
 
 </head>
 
 <body>
+  <script>
+    // Array Remove - By John Resig (MIT Licensed)
+    Array.prototype.remove = function(from, to) {
+      var rest = this.slice((to || from) + 1 || this.length);
+      this.length = from < 0 ? this.length + from : from;
+      return this.push.apply(this, rest);
+    };
+  </script>
   <script src="third party/jquery-3.5.1.min.js"></script>
+  <script src="third party/jquery.csv.js"></script>
+  
   <script type="text/javascript" charset="UTF-8" src="https://cdn.jsdelivr.net/npm/jsxgraph@1.1.0/distrib/jsxgraphcore.js"></script>
   <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/jsxgraph@1.1.0/distrib/jsxgraph.css" />
 
-  <div id="jsxgbox" class="jxgbox" style="width:500px; height:500px">
-  <script src="js/test.js"></script>
+
+  <select id='regions_dropdown'><option>None</option></select>
+
+  <input type="checkbox" id="sevendayavg" name="sevendayavg" value="1" checked>
+  <label for="sevendayavg">Seven Day Average</label><br>
+
+  <div id="jsxgbox" class="jsxgbox" style="width:500px; height:500px"></div>
+
+  <script src="js/main.js"></script>
 
 
 </div>
