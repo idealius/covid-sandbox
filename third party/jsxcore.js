@@ -19428,7 +19428,7 @@
                             for (o = 0; o < i.length; o++) this.removeObject(i[o]);
                             return this;
                         }
-                        if (((i = this.select(i)), !u.exists(i) || u.isString(i))) return this;
+                        //if (((i = this.select(i)), !u.exists(i) || u.isString(i))) return this;
                         try {
                             for (s in i.childElements) i.childElements.hasOwnProperty(s) && i.childElements[s].board.removeObject(i.childElements[s]);
                             for (s in i.objects) i.objects.hasOwnProperty(s) && i.objects[s].board.removeObject(i.objects[s]);
@@ -19440,6 +19440,7 @@
                                         (delete this.objects[s].childElements[i.id], delete this.objects[s].descendants[i.id]);
                             else if (u.exists(i.ancestors))
                                 for (s in i.ancestors)
+				    console.log(s);
                                     i.ancestors.hasOwnProperty(s) &&
                                         u.exists(i.ancestors[s].childElements) &&
                                         u.exists(i.ancestors[s].childElements.hasOwnProperty(i.id)) &&

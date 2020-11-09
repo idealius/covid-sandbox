@@ -1,0 +1,15 @@
+Data
+	Global
+		Absolute
+			Cases
+			Deaths
+		Percent of Region Population
+			Cases
+			Deaths
+	State
+		Absolute
+			Cases
+			Deaths
+		Percent of Region Population
+			Cases
+			Deaths
