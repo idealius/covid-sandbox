@@ -1,0 +1,15 @@
+research git updates format
+
+Registered free host
+covid19.42web.io
+
+reworked html/css layout
+added axes labels
+styled axes labels
+began adding mobile and desktop layouts
+	-styles.css / main.js font sizes for graph axes labels, ticks, and graph region labels
+	-main.js browser_context_template 'class' template & array for different platforms
+
+fixed:
+	main.js set_context DOM updates for region_context buttons 
+ 

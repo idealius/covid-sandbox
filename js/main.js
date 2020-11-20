@@ -2,7 +2,7 @@
 //--------------------------------------------------------------------------------------------
 
 //Set to true, this should work in Chrome if for instance you have an extension to disable CORS
-//*Depecrated, now uses .js files because of CORS
+//*Depecrated, now uses .js files because of CORs
 const GOOGLE_DRIVE_DATA = false;
 
 try {
@@ -39,41 +39,52 @@ const COVID_SANDBOX_NS = {
     point: function(x,y){this.x=x; this.y=y;},
 
 
+    //Used for rolling avg changes in window
+    last_rolling_val: -1,
+    last_rolling_bool: -1,
+
     // region_list:[[]],  //Unique regions avaiable in our dataset, organized by dataset
     regions_of_interest:[],
-    first_regions_index:[], //Just some variables for the first region in our data to use for JSXGraph's starting axes, etc.
-    //^ need to check if these two are still used
+    browser_context_list:{},
+
+    browser_context: 'desktop',
 
     max_date: 0, //Number of days of records
-    max_affected: {}, //Highest deaths / cases
+    max_affected: 0, //Highest deaths / cases
     board: NaN,
     rolling_day_average_enabled: true,
     rolling_day_value: NaN,
+
+    last_updated_date: 0,
 
     region_context: "US",
     affected_context: "Cases",
 
     //Pre ES6 classes, _obj's are JSXGraph references:
     graph_status_obj: function(_region_obj, _data_obj, _rolling, _color) {
-        this.region_obj = _region_obj; //JSXGraph for region label on graph
-        this.graph_data_obj = _data_obj; //JSXGraph for graph data
+        this.region_obj = _region_obj; //JSXGraph object for region label on graph
+        this.graph_data_obj = _data_obj; //JSXGraph object for graph data
         this.rolling_day_avg = _rolling; //Bool setting for rolling data (enabled/disabled)
         this.color = _color; //Color of JSXGraph region label
     },
 
     graphs: [],
 
-    // Just some colors
-    custom_colors: [
-        '#3348FF', //blue
-        '#9133FF', //purple
-        '#59FF33', //green
-        '#FFB433', //brown
-        '#33FFF4', //cyan
-        '#E433FF'  //magenta
-    ],
+    axis: {x_axis_obj:'', y_axis_obj:''},
 
-    //Object for keeping track of the column names for the different datasets.
+ 
+
+    // Just some colors
+    custom_colors: {
+        0:{value:'#3348FF', gamma: 'dark'}, //blue
+        1:{value:'#59FF33', gamma: 'bright'},//green
+        2:{value:'#9133FF', gamma: 'dark'}, //purple
+        3:{value:'#FFB433', gamma: 'dark'},  //brown
+        4:{value:'#33FFF4', gamma: 'bright'},//cyan
+        5:{value:'#E433FF', gamma: 'dark'}  //magenta
+    },
+
+    //Object for constructing the column name strings for the different datasets.
     header_obj: function(_filename) {
         switch (_filename) {
             case 'covid19_deaths_US_rate':
@@ -96,14 +107,33 @@ const COVID_SANDBOX_NS = {
                 this.region_context = 'global';
                 this.region_column = 'Country/Region';
                 break;
+            case 'spanish_flu_conversion':
+                this.affected_column = "Deaths (Per Capita)";
+                this.region_context = 'country';
+                this.region_column = 'Country/Region';
+                break;
             default: //unused
                 this.region_context = 'US';
-                this.region_column = 'Province_State';
+                this.region_column = 'Country/Region';
                 this.affected_column = "Cases (Per Capita)";
                 break;
         }
         this.date_column = "Date"
     },
+
+   //Object class for different datasets
+   browser_context_template: function(_context, _graph_region_font_size, _graph_region_outline, _axis_font_size, ) {
+    // var data2 = _data; //this is a required buffer between data & _data
+    // var columns2 = new this.header_obj(_filename);
+    var obj = {
+        [_context]:{graph_region_font_size: _graph_region_font_size,
+                    graph_region_outline: _graph_region_outline,
+                    axis_font_size: _axis_font_size,
+        }
+    }
+
+    return obj;
+},
 
     //Object class for different datasets
     affected_data_template: function(_filename, _data) {
@@ -120,18 +150,20 @@ const COVID_SANDBOX_NS = {
     },
 
     region_data_template: function(_filename, _data) {
-        var data2 = _data; //this is a required buffer between data & _data <- need to check if these are needed for this version of the template
+        var data2 = _data; //this is a required buffer between data & _data <- confirmed
         var columns2 = new this.header_obj(_filename);
         this.regions_of_interest.push({data:data2, columns:columns2});
+
         return this.regions_of_interest.length-1; //return our index
     },
 
 
-    //Just to make accessing data columns less ugly and inconsistent:
+    //Just to make accessing data columns shorter:
     us_death_rate : "covid19_deaths_US_rate",
     us_case_rate : "covid19_confirmed_US_rate",
     global_death_rate : "covid19_deaths_global_rate",
     global_case_rate : "covid19_confirmed_global_rate",
+    uk_spanish_flu_deaths: "spanish_flu_conversion",
 
     //Return dataset context
     get_context: function() {
@@ -145,28 +177,55 @@ const COVID_SANDBOX_NS = {
         }
     },
 
+    //Might not need this.
+    interpret_context: function(_context){
+        _return = {region:'',affected:''}
+        switch (_context) {
+            case this.us_case_rate:
+                _return.region = 'US';
+                _return.affected = 'Cases';
+                break;
+            case this.us_death_rate:
+                _return.region = 'US';
+                _return.affected = 'Deaths';
+                break;
+            case this.global_case_rate:
+                _return.region = 'Global';
+                _return.affected = 'Cases';
+                break;
+            case this.global_death_rate:
+            case this.uk_spanish_flu_deaths:
+                _return.region = 'Global';
+                _return.affected = 'Deaths';
+                break;
+            default:
+            break;
+        }
+        return _return;
+    },
+
     set_context: function(_region, _affected) {
         if (_region.toUpperCase() == "US") { //.toUpperCase just to avoid any case mistakes
             _region = "US"; 
-            $("#region_context_us").attr('checked', 'checked');
-            $("#region_context_global").not('checked', false);
+            $("#region_context_us").prop('checked', true);
+            $("#region_context_global").prop('checked', false);
         }
         else {
             _region = "Global"
-            $("#region_context_global").attr('checked', 'checked');
-            $("#region_context_us").attr('checked', false);
+            $("#region_context_global").prop('checked', true);
+            $("#region_context_us").prop('checked', false);
         }
 
 
         if (_affected.toUpperCase() == "CASES") {
             _affected = "Cases";
-            $("#affected_context_cases").attr('checked', 'checked');
-            $("#affected_context_deaths").attr('checked', false);
+            $("#affected_context_cases").prop('checked', true);
+            $("#affected_context_deaths").prop('checked', false);
         }
         else {
             _affected = "Deaths";
-            $("#affected_context_deaths").attr('checked', 'checked');
-            $("#affected_context_cases").attr('checked', false);
+            $("#affected_context_deaths").prop('checked', true);
+            $("#affected_context_cases").prop('checked', false);
         }
 
         this.region_context = _region;
@@ -174,25 +233,28 @@ const COVID_SANDBOX_NS = {
     },
 
     affected_data:{}, //Array of deaths / cases
-    //affected_data[i] where i is the dataset
-    //->              .[filename].data[index][column_name] //actual records
-    //->              .[filename].columns.affected_column //deaths or cases column name
-    //->              .[filename].columns.region_context //US or world
-    //->              .[filename].columns.region_column //State / Country column names
-    //->              .[filename].columns.date          //date column name
-    //->              .[filename].region_list          //list of unique sub-regions
+    //affected_data[filename] where i is the filename/dataset
+    //->              [filename].data[index][column_name] //actual records
+    //->              [filename].columns.affected_column //deaths or cases column name
+    //->              [filename].columns.region_context //US or world
+    //->              [filename].columns.region_column //State / Country column names
+    //->              [filename].columns.date          //date column name
+    //->              [filename].region_list          //list of unique sub-regions
     
 
-    //Main data loading function from Google Drive and applies data to page as well as initalizing graph
+    //Main data loading function from JS/Google Drive and applies data to page as well as initalizing graph
     process_data: function(_filename, _data) {
         "use strict";
         // this.affected_data = _data;
         var new_dataset = this.affected_data_template(_filename, _data);
-        inform(this.region_context);
+        inform(_filename);
         // inform(this.affected_data);
         // this.affected_data.push(new_dataset);
         // this.affected_data.push({});
+
+        
         Object.assign(this.affected_data, new_dataset);
+        this.remove_invalid_regions(_filename);
 
         inform(this.affected_data);
         inform(this.affected_data[_filename]);
@@ -203,22 +265,37 @@ const COVID_SANDBOX_NS = {
         // inform(region_list)
         // inform(region_list[0])
 
-        // inform(temp)
-
-
-
-        function sortFunction(_a, _b, _column_name) {
-            if (_a[_column_name] === _b[_column_name]) {
-                return 0;
-            }
-            else {
-                return (_a[_column_name] < _b[_column_name]) ? -1 : 1;
-            }
-        }
-
+        inform(this.affected_data);
     
     },
 
+    sort_function: function(_a, _b, _column_name) {
+        if (_a[_column_name] === _b[_column_name]) {
+            return 0;
+        }
+        else {
+            return (_a[_column_name] < _b[_column_name]) ? -1 : 1;
+        }
+    },
+
+    //Removes regions with affected (per capita) values == -1
+    remove_invalid_regions: function(_filename) {
+        _data = this.affected_data[_filename];
+        inform(_data);
+        var current_region = ""
+        for (var i=0; i<_data.data.length;i++) {
+            if (_data.data[i][_data.columns.affected_column] == -1) {
+                current_region = _data.data[i][_data.columns.region_column];
+                while (current_region ==  _data.data[i][_data.columns.region_column]) {
+                    _data.data.splice(i,1);
+                    // no i++ because, somewhat confusingly, splice re-indexes the array as it goes, so the i doesn't need to increment
+                }
+            }
+        }
+        return _data;
+    },
+
+    
 
 
     //Create a blank graph with dimensions defined by the first region's data (Alabama)
@@ -226,15 +303,13 @@ const COVID_SANDBOX_NS = {
 
         // this.regions_of_interest.pop();
         var context = this.get_context();
-        inform (context);
-        inform(this.affected_data[context]);
 
         var _parent_data = this.affected_data[context];
         this.fill_regions_dropdown(_parent_data.region_list);
+
         var _region_column = _parent_data.columns.region_column;
         var _data = this.affected_data[context].data;
         this.create_region_of_interest(_data[0][_region_column], context);
-        inform(_data[0][_region_column]);
 
         var _affected_column = _parent_data.columns.affected_column;
         this.max_affected = this.get_max_base_affected(0, _affected_column);
@@ -243,21 +318,39 @@ const COVID_SANDBOX_NS = {
         inform(this.max_affected)
 
         inform(this.regions_of_interest[0].data["Date"]);
-        // inform(this.regions_of_interest[0][this.regions_of_interest[0].length-1]["Date"]);
-
+   
 
         //this.max_date = Math.floor((this.regions_of_interest[0][this.regions_of_interest[0].length-1]["Date"] - this.regions_of_interest[0][0]["Date"])/(1000*3600*24));
         this.max_date = this.regions_of_interest[0].data.length
 
         // this.board = JXG.JSXGraph.initBoard('jsxgbox', {boundingbox:[-5,5,5,-5], axis:true, showNavigation:true, showCopyright:true});
 
-        JXG.Options.text.display = 'internal'; //~ needed for text to work on webkit / firefox
-        inform(JXG.Options);
+        // JXG.Options.text.display = 'internal'; //~ needed for text to work on webkit / firefox <- also breaks user-defined css styles in graph
+  
+        JXG.Options.text.cssDefaultStyle = '';
+        JXG.Options.text.highlightCssDefaultStyle = '';
 
-        JXG.Options.text.cssClass = 'jsxgDefaultFont';
+        // JXG.Options.text.cssClass = 'jsxgDefaultFont';
 
-        this.board = JXG.JSXGraph.initBoard('jsxgbox', {
+        var new_browser_context = this.browser_context_template("desktop", 18, false, 14);
+        Object.assign(this.browser_context_list, new_browser_context);
+
+        new_browser_context = this.browser_context_template("mobile", 8, true, 6);
+        Object.assign(this.browser_context_list, new_browser_context);
+
+        inform(this.browser_context_list);
+
+        var viewportWidth = $(window).width();
+        var viewportHeight = $(window).height();
+
+        if (viewportWidth < 768) this.browser_context = 'mobile';
+        else this.browser_context = 'desktop';
+
+        inform(this.browser_context_list[this.browser_context].axis_font_size);
+
+        this.board = JXG.JSXGraph.initBoard('jsxbox', {
             boundingbox: [-50,this.max_affected.y,this.max_date+20,-.0005],
+            // boundingbox: [0,10,10,0],
             //keepaspectratio: true,
             showcopyright: false,
             axis: true,
@@ -267,13 +360,25 @@ const COVID_SANDBOX_NS = {
                     strokeColor: 'grey',
                     ticks: {
                         visible: 'inherit',
-                    }
+                        fontsize: 5,
+                        label: {
+                            fontsize:this.browser_context_list[this.browser_context].axis_font_size
+                        }
+                    },
+                    
+                    // withLabel: true
                 },
                 y: {
                     strokeColor: 'grey',
                     ticks: {
                         visible: 'inherit',
+                        fontsize: 5,
+                        label: {
+                            fontsize:this.browser_context_list[this.browser_context].axis_font_size
+                        }
                     }
+                    
+                    // withLabel: true
                 },
             },
             zoom: {
@@ -284,94 +389,247 @@ const COVID_SANDBOX_NS = {
                 min: 0.1
             },
             pan: {
-                needTwoFingers: true,
+                needTwoFingers: false,
                 needShift: false
             },
     
             showZoom: false,
-            showNavigation: false,
+            showNavigation: false
         });
+
+
+        // this.board.defaultAxes.x.setLabel("Days since 1/22/2020");  // unsuccessful attempt to use labels of JXG internal axes labels
+        // this.board.defaultAxes.x.label.visProp.position = "middle";
+        // this.board.defaultAxes.x.label.visProp.fontsize = 14;
+        // this.board.defaultAxes.x.label.visProp.anchory = "top"; //opposite, lol
+        // this.board.defaultAxes.y.setLabel("Deaths / Cases as percentage of each region");
+        // this.board.defaultAxes.y.label.visProp.rotate = 270; //only works if display is set to 'internal'
+        // this.board.defaultAxes.y.label.visProp.position = "middle";
+        // this.board.defaultAxes.y.label.visProp.fontsize = 14;
+
+        inform(this.board);
+        // graph.visProp.label.position = "top";
+        // graph.visProp.label.autoposition = "true";
+  
+
+        // this.board.mode = this.board.BOARD_MODE_DRAG;
+        // inform(this.board.BOARD_MODE_MOVE_ORIGIN);
         
+
         // this.board.attr.pan.enabled = true;
         // this.board.mode = JXG.Board.;
-        inform(this.board.mode);
+        // inform(this.board.mode);
 
         // brd.setBoundingBox([-1,maxY*1.01,maxX*1.05,minY*0.95]);
         var x = [...Array(this.max_date).keys()];
         var y = this.extract_affected(this.regions_of_interest[0].data, this.regions_of_interest[0].columns.affected_column);
 
 
+        this.add_axes();
+
         this.board.update();
+
+        // this.board.on('update', this.update_axes());
+        this.board.on('update', function (){ COVID_SANDBOX_NS.update_axes();});
+
         this.regions_of_interest.pop(); //remove Alabama from our list.
     },
 
+    
+    update_axes: function() {
+        this.board.update();
+        var bounding_box = this.board.getBoundingBox(); //returns 4 element array: left, upper, right, lower
+
+        if (bounding_box[2] > Math.abs(bounding_box[0])) var x_offset = (bounding_box[2] / 2 );
+        else var x_offset = bounding_box[0] /2
+        var y_offset = -(bounding_box[1] -bounding_box[3]) / 7;
+
+        // this.axis.x_axis_obj.coords.usrCoords[1] = x_offset; // this doesnt work, need to use setposition with COORDS_BY_USER
+        // this.axis.x_axis_obj.coords.usrCoords[2] = y_offset;
+        this.axis.x_axis_obj.setPosition(JXG.COORDS_BY_USER, [x_offset,y_offset]);
+
+
+        x_offset = (bounding_box[2] - bounding_box[0]) / 80;
+        if (bounding_box[1] > Math.abs(bounding_box[3])) y_offset = (bounding_box[1] / 10 );
+        else {
+            y_offset = bounding_box[3]
+        }
+
+        // this.axis.y_axis_obj.coords.usrCoords[1] = x_offset;
+        // this.axis.y_axis_obj.coords.usrCoords[2] = y_offset;
+        
+        this.axis.y_axis_obj.setPosition(JXG.COORDS_BY_USER, [x_offset,y_offset]);
+
+        // this.axis.x_axis_obj.updateText();
+        // this.axis.y_axis_obj.updateText();
+        // this.axis.x_axis_obj.needsUpdate = true;
+        // this.axis.y_axis_obj.needsUpdate = true;
+        this.board.fullUpdate();
+
+
+    },
+
+
+    add_axes: function() {
+
+        //rather than duplicate the x and y position calculations, just set them to zero and call update_axes():
+
+        this.axis.x_axis_obj = this.board.create('text', [
+            //X,Y value:
+            0, 0,
+            'Days since 1/22/20'
+            ], {
+            display: 'internal',
+            anchorX: "middle",
+            anchorY: "bottom", // <- should be top, but jsgx does opposite of what I expect.
+            cssClass: "region_labels_bright", 
+            highlightCssClass: "region_labels_bright_highlight",
+            fontSize: this.browser_context_list[this.browser_context].axis_font_size,
+            strokeColor: 'black',
+            highlight: false,
+            needsRegularUpdate:true,
+            // rotate: 90,
+            fixed: true // works
+        });
+
+
+        this.axis.y_axis_obj = this.board.create('text', [
+            //X,Y value:
+            0, 0,
+            'Rate Change as % of Same Population'
+            ], {
+            display: 'internal',
+            anchorX: "left",
+            anchorY: "top", // <- should be top, but jsgx does opposite of what I expect.
+            cssClass: "region_labels_bright", 
+            highlightCssClass: "region_labels_bright_highlight",
+            fontSize:this.browser_context_list[this.browser_context].axis_font_size,
+            strokeColor: 'black',
+            highlight: false,
+            rotate: 90,
+            needsRegularUpdate:true,
+            fixed: true // works
+        });
+
+
+        this.update_axes();
+    },
+
+    // graph_status_obj: function(_region_obj, _data_obj, _rolling, _color) {
+    //     this.region_obj = _region_obj; //JSXGraph for region label on graph
+    //     this.graph_data_obj = _data_obj; //JSXGraph for graph data
+    //     this.rolling_day_avg = _rolling; //Bool setting for rolling data (enabled/disabled)
+    //     this.color = _color; //Color of JSXGraph region label
+    // },
+
+
+
+
+    clear_all: function() {
+        // this.max_date = 0;
+        this.max_affected.x = 0;
+        this.max_affected.y = 0;
+        for (var i = 0; i < this.graphs.length; i++) {
+            this.board.removeObject(this.graphs[i].region_obj);
+            this.board.removeObject(this.graphs[i].graph_data_obj);
+        }
+        this.board.update();
+        // board.removeObject([array of objects]);
+    },
 
     //Create namespace's regions_of_interest and calls constructor for graph_stats_obj where each graph's information is stored (including JSXGraph's)
     add_region_to_graph: function(_region_of_interest_index) {
         _selected_region = this.regions_of_interest[_region_of_interest_index]
         inform(_selected_region);
-        this.max_affected = this.get_max_base_affected(_region_of_interest_index, _selected_region.columns.affected_column);
-        var max_affected_graph = this.max_affected.y + this.max_affected.y / 5;
+
+        //Used for keeping track of the highest value for bounding box settings
+        var header_factor = 8; // when set to 5 adds 20% to the top.
+        new_max_affected = this.get_max_base_affected(_region_of_interest_index, _selected_region.columns.affected_column);
+        // var data_context = this.regions_of_interest[_region_of_interest_index]._region_obj
+        if (new_max_affected.y + new_max_affected.y / header_factor > this.max_affected.y) this.max_affected.y = new_max_affected.y;
+        if (new_max_affected.x > this.max_affected.x) this.max_affected.x = new_max_affected.x
+
+        var max_affected_graph = this.max_affected.y + this.max_affected.y / header_factor;
         // inform(this.max_affected);
 
-        this.max_date = this.regions_of_interest[_region_of_interest_index].data.length
-        this.board.setBoundingBox([-50,max_affected_graph,this.max_date+20,-.0005]);
+        //numeric date
+        new_max_date = this.regions_of_interest[_region_of_interest_index].data.length
+        if (new_max_date > this.max_date) this.max_date = new_max_date;
+        this.board.setBoundingBox([-20,max_affected_graph,this.max_date+20,-this.max_affected.y / 3]);
         // inform(this.board);
 
         var x = [...Array(this.max_date).keys()];
         var y = this.extract_affected(_selected_region.data, _selected_region.columns.affected_column);
 
-        var my_color = this.custom_colors[_region_of_interest_index % this.custom_colors.length];
+        var my_color_index = _region_of_interest_index % Object.keys(this.custom_colors).length;
+        inform(Object.keys(this.custom_colors).length);
+        inform(this.custom_colors[my_color_index].value);
+        var my_color = this.custom_colors[my_color_index].value;
+
 
         inform(_selected_region);
         var region_txt = _selected_region.data[0][_selected_region.columns.region_column];
 
 
-        var graph_index = this.graphs.length; //since we check it before the push() it will equal current .length
-
-        // var p0 = this.board.create('point', [0,0], {name:'T'});
-
-
-        var region_txt_obj = this.board.create('text', [
-            //X,Y value:
-            this.max_affected.x,this.max_affected.y,
-            // COVID_SANDBOX_NS.get_max_graph_affected(Number(graph_index)).x,
-            // COVID_SANDBOX_NS.get_max_graph_affected(Number(graph_index)).y + COVID_SANDBOX_NS.get_max_graph_affected(Number(graph_index)).y / 5,
-            region_txt + '(' + this.affected_context + ')'
-            ], {
-            anchorX: "middle",
-            anchorY: "bottom", // <- should be top, but jsgx does opposite of what I expect.
-            cssClass: "myFont",
-            fontsize: 18,
-            strokeColor: my_color,
-            dragToTopOfLayer: true,
-            // fixed: true // works
-        });
-
-        // var txt = this.board.create('text', [0,0, " <span id='par'>(</span> Hello world <span id='par'>)</span>"], 
-        //   {
-        //     cssClass:'myFont', strokeColor:'red',
-        //     highlightCssClass: 'myFontHigh',
-        //     fontSize:20
-        //   });
-
-        
-
         var graph = this.board.create('curve', [x,y], {
-            // name: String(_selected_region[0]["Province_State"]),
-            // id: String(_selected_region[0]["Province_State"]),
-            // label:{autoPosition: true, offset:[0, 0], anchorX: 'middle', anchorY: 'middle'},
             strokeColor:my_color,
             fillColor:my_color, 
             fillOpacity:.5, 
             name:"curve", 
             strokeWidth:1.5,
-            fixed: true
+            fixed: true,
+            highlight: false
+            // withlabel: true
             // dragToTopOfLayer: true
         });
-        inform(graph);
-        construct = new this.graph_status_obj(region_txt_obj, graph, -1, my_color); // set rolling avg to -1 so its updated later
+        // graph.setLabel(region_txt + ' (' + this.affected_context + ')');
+        // graph.visProp.label.position = "top";
+        // graph.visProp.label.autoposition = "true";
+  
 
+        inform(graph);
+  
+        JXG.Options.text.cssDefaultStyle = '';
+        JXG.Options.text.highlightCssDefaultStyle = '';
+        
+        var region_labels_style;
+
+        if (!this.browser_context_list[this.browser_context].graph_region_outline) {
+            if (this.custom_colors[my_color_index].gamma == 'dark') region_labels_style ="region_labels_dark"; //_dark for original config
+            else region_labels_style = "region_labels_bright";    
+        } 
+        else {
+            if (this.custom_colors[my_color_index].gamma == 'dark') region_labels_style ="region_labels_dark"; //_dark for original config
+            else region_labels_style = "region_labels_bright_mobile";    
+        }
+
+        var region_txt_obj = this.board.create('text', [
+            //X,Y value:
+            new_max_affected.x, new_max_affected.y,
+            region_txt + ' (' + this.affected_context + ')'
+            ], {
+            anchorX: "middle",
+            anchorY: "bottom", // <- should be top, but jsgx does opposite of what I expect.
+            cssClass: region_labels_style, 
+            highlightCssClass: region_labels_style + "_highlight",
+            // strokeColor: 'red',
+            // isLabel: true,
+            fontSize:this.browser_context_list[this.browser_context].graph_region_font_size,
+            strokeColor: my_color,
+            // highlight: false,
+            // rotate: 90,// only works if display is set to internal
+            // highlightStrokeColor: my_color,
+            // dragToTopOfLayer: true,
+
+            fixed: true // works
+        });
+        
+
+        inform(region_txt_obj);
+        region_txt_obj.visProp.islabel = true;
+        construct = new this.graph_status_obj(region_txt_obj, graph, -1, my_color); // set rolling avg to -1 so its updated later at update_rolling_average()
+
+        var graph_index = this.graphs.length; //since we check it before the push() it will equal current .length
         this.graphs.push(construct);
         
         this.add_tidy_endpoints(this.graphs[graph_index].graph_data_obj);
@@ -379,15 +637,103 @@ const COVID_SANDBOX_NS = {
         if (this.rolling_day_average_enabled)
             this.update_rolling_average();
         else 
-            this.board.update(); //required to update graph coordinate  
+            this.update(); //required to update graph coordinate  
         
+    },
+    
+    //Clip by active graph data potentially put through rolling average / other transformations versus underlying actual data.
+    clip_bounding_box_by_graph: function() {
+        var _max_y = 0;
+        for (var i = 0; i <this.graphs.length; i++) {
+            for (var i2 = 0; i2 < this.graphs[i].graph_data_obj.dataY.length; i2++) {
+                if (this.graphs[i].graph_data_obj.dataY[i2] > _max_y) {
+                    _max_y = this.graphs[i].graph_data_obj.dataY[i2];
+                    var last_obj = this.graphs[i].graph_data_obj;
+                }
+            }
+        }
+        inform(_max_y, last_obj);
+        this.board.setBoundingBox([-20,_max_y, this.max_date+20,-_max_y / 3]);
+    },
+
+    add_top_regions: function(_num_regions, _num_days){
+        var _context = this.get_context();
+        var _region_list = [];
+        var _last_region = "";
+        var _check_region = "";
+        var _affected_column = this.affected_data[_context].columns.affected_column;
+        var _region_name_column = this.affected_data[_context].columns.region_column;
+        var _data = this.affected_data[_context].data;
+        var _total = 0;
+        var counter = 0;
+        var start = this.max_date - _num_days;
+        inform(this.max_date);
+        if (_num_days > this.max_date) _num_days = this.max_date;
+        else if (_num_days < 1) _num_days = 1;
+        if (_num_regions > this.affected_data[_context].region_list.length) _num_regions = this.affected_data[_context].region_list.length;
+        else if (_num_regions < 1) _num_regions = 1;
+
+        for (var i = 1; i < _data.length; i++) {
+            counter ++;
+            _check_region = _data[i][_region_name_column];
+
+            if (counter < start) {
+                _last_region = _check_region;
+                continue;
+            }
+
+            // _last_region = _check_region;
+
+
+            if (_check_region == _last_region) {
+                _total += _data[i][_affected_column];
+            }
+            else {
+                _region_list.push({region:_data[i][_region_name_column],total:_total});
+                _total = 0;
+                counter = 0;
+            }
+            _last_region = _check_region;
+        }
+
+        _region_list.sort(function(a, b) {return b.total - a.total;}); //sort by descending total
+        var _full_list = _region_list;
+        _region_list = _region_list.slice(0, _num_regions);
+
+        
+        for (var i = 0; i < _region_list.length; i++) {
+            var try_region = this.create_region_of_interest(_region_list[i].region, _context);
+            if (try_region != -1) this.add_region_to_graph(try_region);
+        }
+        
+        var context_str = new this.header_obj(_context);
+        inform(_full_list, _region_list);
+        var str = "List of region totals sorted by (" + context_str.affected_column + ") across " + _num_days + " days:\n\n";
+
+        for (var i = 0; i < _full_list.length; i++) {
+            str = str +_full_list[i].region + ' ' + Number.parseFloat(_full_list[i].total).toPrecision(5) + '%\n';
+            // inform(_full_list[i].region, _full_list[i].total);
+        }
+
+        var divider_str = "\n*****************************\n\n*****************************\n";
+        $('#console').val(str + divider_str + $('#console').val());
+
+        return _region_list;
+    },
+
+    set_text_objects_ontop: function(){ //need to add to init !
+        
+        for (var i = 0; i < x; i++) {
+            this.graphs.region_obj.layer
+        }
     },
 
     
     update_region_label: function(index) {
+        inform(this.max_affected);
         var _selected_graph_region = this.graphs[index];
-        this.max_affected = this.get_max_graph_affected(index);
-        _selected_graph_region.region_obj.setCoords(this.max_affected.x,this.max_affected.y);
+        var max_affected = this.get_max_graph_affected(index);
+        _selected_graph_region.region_obj.setCoords(max_affected.x,max_affected.y);
         
     },
 
@@ -396,7 +742,7 @@ const COVID_SANDBOX_NS = {
         var range = [];
         var parent_result_array = []
 
-        //Inline function to account for rangle mutations at beginning and end of array
+        //Inline function to account for rangle limitations at beginning and end of array
         function average_across_range(data, x, breadth) {
             breadth = Math.floor(breadth / 2);
             var start = x - breadth;
@@ -432,7 +778,7 @@ const COVID_SANDBOX_NS = {
     //Helper function for particular graph data resetting to regions_of_interest and calls transform_range to apply rolling average
     apply_rolling_average: function(index) {
             this.remove_tidy_endpoints(this.graphs[index].graph_data_obj)
-            this.graphs[index].graph_data_obj.dataX = [...Array(this.max_date).keys()];
+            this.graphs[index].graph_data_obj.dataX = [...Array(this.regions_of_interest[index].data.length).keys()];
             this.graphs[index].graph_data_obj.dataY = this.extract_affected(this.regions_of_interest[index].data, this.regions_of_interest[index].columns.affected_column); //we need to extract data before next line
             this.graphs[index].graph_data_obj.dataY = this.transform_range(this.graphs[index].graph_data_obj.dataY, this.rolling_day_value);
             this.add_tidy_endpoints(this.graphs[index].graph_data_obj);
@@ -459,8 +805,6 @@ const COVID_SANDBOX_NS = {
                 if (this.graphs[i].rolling_day_avg != this.rolling_day_value || changed) {
                    
                     this.apply_rolling_average(i);
-                    // this.graphs[i].region_txt = this.board.create('text', [this.max_affected.x,this.max_affected.y, _selected_region[0]["Province_State"]], {fontSize:18, color: my_color});
-                    // inform(this.graphs[i].region_obj);
                     this.graphs[i].rolling_day_avg = this.rolling_day_value;
                     this.update_region_label(i);
                 }
@@ -471,7 +815,7 @@ const COVID_SANDBOX_NS = {
                 if (this.graphs[i].rolling_day_avg != this.rolling_day_value || changed) {
 
                     this.graphs[i].graph_data_obj.dataX = [...Array(this.max_date).keys()];
-                    this.graphs[i].graph_data_obj.dataY = this.extract_affected(this.regions_of_interest[i], this.regions_of_interest[i].columns.affected_column);
+                    this.graphs[i].graph_data_obj.dataY = this.extract_affected(this.regions_of_interest[i].data, this.regions_of_interest[i].columns.affected_column);
                     this.add_tidy_endpoints(this.graphs[i].graph_data_obj);
                     this.graphs[i].rolling_day_avg = this.rolling_day_value;
                     this.update_region_label(i);
@@ -481,13 +825,19 @@ const COVID_SANDBOX_NS = {
         }
 
 
+        this.update();
+    },
+
+    //Wrapper for board update so we can adjust axes
+    update: function() {
+        inform(this.axis);
+        this.update_axes();
         this.board.update();
     },
 
-
     //This function is just to make the fillcolor look correct/good
     add_tidy_endpoints: function(graph) {
-        // inform(graph)
+        inform(graph)
         graph.dataX.splice(0, 0, 0); //insert 0 x & value at start of array
         graph.dataY.splice(0, 0, 0); 
         graph.dataX.push(graph.dataX.length-2); //append a duplicate x value and a 0 y value at the end of our data 
@@ -543,7 +893,6 @@ const COVID_SANDBOX_NS = {
     "use strict";
 
     // var context = this.get_context();
-    var index_of_last_region = this.regions_of_interest.length-1;
     var _parent_data = this.affected_data[context];
     // this.fill_regions_dropdown(_parent_data.region_list);
     var _region_column = _parent_data.columns.region_column;
@@ -573,7 +922,7 @@ const COVID_SANDBOX_NS = {
                 already_alerted = true;
             }
             // delete this.regions_of_interest[index_of_last_region];
-            this.regions_of_interest.pop(); //delete
+            // this.regions_of_interest.pop(); //delete
             return -1
         }
         
@@ -592,77 +941,8 @@ const COVID_SANDBOX_NS = {
     this.region_data_template(context, data_buffer);
 
     return this.regions_of_interest.length-1;
-
-    // inform(this.regions_of_interest);
-
    },
-    // //Generates the time series for a specific region in parent scope: regions_of_interest then returns the index for it
-    // create_region_of_interest: function(_region) {
-    //     "use strict";
-    //     // this.regions_of_interest.push([]); //append empty array for a new region list to our list of regions_of_interest
-    //     // var index_of_last_region = this.regions_of_interest.length-1;
-    //     // inform(index_of_last_region)
-    //     // var _list_by_region = this.regions_of_interest[index_of_last_region];
-    //     // var context = this.get_context();
-    //     // var _affected_column = this.affected_data[context].columns.affected_column;
-    //     // var _region_column = this.affected_data[context].columns.region_column;
-    //     // // var _to_number = ["Deaths (Per Capita)", "Lat", "Long_", "Population", "Reported Deaths"] //Long is renamed to Long_ by js or csv reader
-    //     // var _to_number = [_affected_column, "Lat", "Long_", "Population"] //Long is renamed to Long_ by js or csv reader
-    //     // var _to_date = "Date"
-    //     // var _data = this.affected_data[context].data;
-    //     // var already_alerted = false;
-
-
-    //     var _data = this.affected_data_template(_filename, this.affected_data[this.affected_data]);
-    //     inform(this.region_context);
-    //     // inform(this.affected_data);
-    //     // this.affected_data.push(new_dataset);
-    //     // this.affected_data.push({});
-    //     Object.assign(this.regions_of_interest, new_dataset);
-
-    //     inform(this.affected_data);
-    //     inform(this.affected_data[_filename]);
-
-        
-    //     var _check_region = "";
-    //     var counter = 0;
-    //     for (var i = 0; i < _data.length; i++) { //no header
-    //         // _check_region = _data[i]['Province_State'];
-    //         _check_region = _data[i][_region_column];
-
-    //         if (_check_region != _region) continue; //skip unmatching regions
-            
-    //         // if (_data[i]['Deaths (Per Capita)'] == -1) {
-    //         if (_data[i][_affected_column] == -1) {
-    //             if (!already_alerted) {
-    //                 // alert("Dataset for region:" +_data[i]['Province_State'] + " incomplete at index:" + i)
-    //                 alert("Dataset for region:" +_data[i][_region_column] + " incomplete at index:" + i)
-    //                 already_alerted = true;
-    //             }
-    //             // delete this.regions_of_interest[index_of_last_region];
-    //             this.regions_of_interest.pop(); //delete
-    //             return -1
-    //         }
-
-    //         _list_by_region.push(_data[i]);
-            
-    //         //convert strings from our table that should be numbers to numbers
-    //         for (var i_2 = 0, len = _to_number[i_2].length; i_2 < len; i_2++) { 
-    //             _list_by_region[counter][_to_number[i_2]] = Number(_list_by_region[counter][_to_number[i_2]])
-    //         }
-    //         //convert dates to date types
-    //         _list_by_region[counter][_to_date] = new Date(_list_by_region[counter][_to_date])
-    //         counter ++;
-    //     }
-    //     inform(_list_by_region)
-    //     return index_of_last_region;
-    // },
-
-    //un-used
-    // get_min_affected: function(_data, column_name) { 
-    //     return _data.reduce((min, p) => p.y < min ? p.y : min, _data[0].y);
-    // },
-
+   
     
     get_max_base_affected: function(_dataset_index, column_name) {
         // var new_max = 0;
@@ -690,7 +970,6 @@ const COVID_SANDBOX_NS = {
           result_point = new this.point(0, 0);
           // inform(column_name)
           for (var i = 0; i < this.graphs[index].graph_data_obj.dataX.length; i++) {
-              // inform(this.regions_of_interest[_dataset_index][i][column_name])
               if (this.graphs[index].graph_data_obj.dataY[i] > result_point.y){
                   result_point.x = i;
                   result_point.y = this.graphs[index].graph_data_obj.dataY[i];
@@ -702,7 +981,7 @@ const COVID_SANDBOX_NS = {
     },
 
 
-    //give methos knowledge of their namespace
+    //give methods knowledge of their namespace
     init : function() {
         "use strict";
         this.affected_data_template.parent = this;
@@ -725,6 +1004,16 @@ const COVID_SANDBOX_NS = {
         this.apply_rolling_average.parent = this; 
         this.point.parent = this;
         this.update_region_label.parent = this;
+        this.remove_invalid_regions.parent = this;
+        this.add_axes.parent = this;
+        this.update.parent = this;
+        this.update_axes.parent = this;
+        this.interpret_context.parent = this;
+        this.browser_context_template.parent = this;
+        this.sort_function.parent = this;
+        this.add_top_regions.parent = this;
+        this.clear_all.parent = this;
+        this.clip_bounding_box_by_graph.parent = this;
 
         delete this.init;
         return this;
@@ -782,9 +1071,16 @@ $(document).ready(function() {
         COVID_SANDBOX_NS.process_data("covid19_confirmed_US_rate", covid19_confirmed_US_rate);
         COVID_SANDBOX_NS.process_data("covid19_deaths_global_rate", covid19_deaths_global_rate);
         COVID_SANDBOX_NS.process_data("covid19_confirmed_global_rate", covid19_confirmed_global_rate);
+        COVID_SANDBOX_NS.process_data("spanish_flu_conversion", spanish_flu_conversion);
         COVID_SANDBOX_NS.set_context("US", "Cases");
-    
         COVID_SANDBOX_NS.initialize_graph();
+        inform(COVID_SANDBOX_NS.affected_data["covid19_deaths_US_rate"]);
+        var _context = "covid19_deaths_US_rate"
+        var _parent_data = COVID_SANDBOX_NS.affected_data[_context];
+        COVID_SANDBOX_NS.last_updated_date = _parent_data.data[_parent_data.data.length-1][_parent_data.columns.date_column];
+        inform(COVID_SANDBOX_NS.last_updated_date);
+        // $('#last_updated').after(COVID_SANDBOX_NS.last_updated_date)
+        $('#last_updated').append(COVID_SANDBOX_NS.last_updated_date);
     }
 
     //Event handler for region radio buttons (US/Global)
@@ -794,16 +1090,16 @@ $(document).ready(function() {
         COVID_SANDBOX_NS.region_context = this.value;
         inform(COVID_SANDBOX_NS.region_context + " is now selected.");
         $('#regions_dropdown').empty();
-        COVID_SANDBOX_NS.fill_regions_dropdown("None");
+        COVID_SANDBOX_NS.fill_regions_dropdown("-- Select --");
         COVID_SANDBOX_NS.fill_regions_dropdown(COVID_SANDBOX_NS.affected_data[COVID_SANDBOX_NS.get_context()].region_list);
     });
 
-        //Event handler for 'affected' radio buttons (cases/deaths)
+    //Event handler for 'affected' radio buttons (cases/deaths)
     $('input[type=radio][name=affected_context]').change(function () {
         "use strict";
         COVID_SANDBOX_NS.affected_context = this.value;
         inform(COVID_SANDBOX_NS.affected_context + " is now selected.");
-        $("#regions_dropdown").val('None');
+        $("#regions_dropdown").val("-- Select --");
     });
 
 
@@ -812,7 +1108,7 @@ $(document).ready(function() {
         "use strict";
         var highlighted = $( "#regions_dropdown option:selected" ).text();
         inform(highlighted);
-        if (highlighted == "None" || highlighted === undefined ) return;
+        if (highlighted == "-- Select --" || highlighted === undefined ) return;
         var try_region = COVID_SANDBOX_NS.create_region_of_interest(highlighted, COVID_SANDBOX_NS.get_context());
         if (try_region != -1) COVID_SANDBOX_NS.add_region_to_graph(try_region);
     });
@@ -859,23 +1155,55 @@ $(document).ready(function() {
         check_for_avg_change();
     });
 
+    //Event handler for UK Spanish Flu button
+    $('#uk_spanish_flu_button').click(function() {
+        "use strict";
+        var prior_context = {region: COVID_SANDBOX_NS.region_context, affected: COVID_SANDBOX_NS.affected_context}
+        //= COVID_SANDBOX_NS.interpret_context(COVID_SANDBOX_NS.get_context());
+        inform (prior_context);
+        COVID_SANDBOX_NS.set_context("Global", "Deaths");
+        var try_region = COVID_SANDBOX_NS.create_region_of_interest("United Kingdom Spanish Flu 1918", COVID_SANDBOX_NS.uk_spanish_flu_deaths);
+        if (try_region != -1) COVID_SANDBOX_NS.add_region_to_graph(try_region);
+        COVID_SANDBOX_NS.set_context(prior_context.region, prior_context.affected);
+        // Update regions dropdown:
+        $('#regions_dropdown').empty();
+        COVID_SANDBOX_NS.fill_regions_dropdown("-- Select --");
+        COVID_SANDBOX_NS.fill_regions_dropdown(COVID_SANDBOX_NS.affected_data[COVID_SANDBOX_NS.get_context()].region_list);
+    });
+
+    //Event handler for top regions add button
+    $('#top_regions_button').click(function() {
+        "use strict";
+        COVID_SANDBOX_NS.add_top_regions($('#top_regions').val(), $('#top_regions_days').val());
+    });
+
+    //Event handler for clear button
+    $('#clear_button').click(function() {
+        "use strict";
+        COVID_SANDBOX_NS.clear_all();
+
+        $('#regions_dropdown').empty();
+        COVID_SANDBOX_NS.fill_regions_dropdown("-- Select --");
+        COVID_SANDBOX_NS.fill_regions_dropdown(COVID_SANDBOX_NS.affected_data[COVID_SANDBOX_NS.get_context()].region_list);
+    });
+
+    //Event handler for clip bounding box
+    $('#clip_bound_button').click(function() {
+        "use strict";
+        COVID_SANDBOX_NS.clip_bounding_box_by_graph(); //versus 
+    });
+
 
 
     //Timer for rolling day avg input box check
     function check_for_avg_change() {
         "use strict";
 
-        if( typeof check_for_avg_change.last_val == 'undefined') { //declare what would be our static variable in C
-            this.last_val = -1;
-            // var last_val2 = -1;
-            this.last_bool = -1;
-        }
-
         var val = $('#rolling_days').val(); //Get
         // var val2 = $('#rollingavgslider').val(); //Get
         var checked = $('#sevendayavg').is(':checked');
 
-        if (val == this.last_val && checked == this.last_bool) return; //Nothing has actually changed so return
+        if (val == COVID_SANDBOX_NS.last_rolling_val && checked == COVID_SANDBOX_NS.last_rolling_bool) return; //Nothing has actually changed so return
 
 
         if (val < 3) val = 3; //Rolling averages only make sense when they're above 1...
@@ -888,11 +1216,12 @@ $(document).ready(function() {
         COVID_SANDBOX_NS.rolling_day_value = val;
         COVID_SANDBOX_NS.update_rolling_average(true);
 
-        this.last_val = val;
+        COVID_SANDBOX_NS.last_rolling_val = val;
         // this.last_val2 = val;
-        this.last_bool = checked;
+        COVID_SANDBOX_NS.last_rolling_bool = checked;
+        inform(COVID_SANDBOX_NS.board);
     }
-    setInterval(check_for_avg_change, 200);
+    // setInterval(check_for_avg_change, 1000);
 
 });
 

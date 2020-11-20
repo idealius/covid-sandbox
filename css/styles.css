@@ -1,122 +1,338 @@
-/* 
+ 
 * {
     font-family: Verdana, Geneva, Tahoma, sans-serif;
     font-size: 19;
-} */
+} 
+
+:root {
+  --slider_width: 400px;
+  --radio_size: 16px;
+}
+
+body {
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+
+input, textarea, select, button {
+  font-size: 16px; 
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+
+#horiz-spacer {
+  clear:both;
+  margin-top:5px;
+  margin-bottom:.5cm;
+}
+
+#vert-spacer {
+  margin-left:.25cm;
+  margin-right:.25cm;
+}
+
+
+#jsxbox {
+  width: 90%;
+  height: 50vh; 
+  clear:both;
+  margin-top: 20px;
+  margin-left: auto;
+  margin-right: auto; /* center */
+  /* border: 2px solid rgb(212, 212, 212); */
+  /* padding: 2.5%; */
+  /* border-radius: 5px; */
+
+}
+
 
 .row {
+    clear:both;
     margin: auto; /* center */
-    /* border: 2% solid rgb(212, 212, 212); */
-    padding: 2.5%;
-    /* border-radius: 25px; */
+    /* border: 2px solid rgb(212, 212, 212); */
+    /* padding: 2.5%; */
+    border-radius: 5px;
+    width: 100%;
 }
 
 .float-box {
+    margin: 0;  
+    overflow: auto;
     width: 90%;
     height: 500px;
     float: left;
     /* padding: 2.5%; */
-    border: 2% solid rgb(90, 90, 90);
-    /* border-radius: 25px; */
+    /* border: 2px solid rgb(90, 90, 90); */
+    border-radius: 5px;
     /* vertical-align: center; */
 }
+
+
+
+/* BEGIN Custom Radio Boxes */
+
+/* Customize the label (the container) */
+.radio_container {
+  float: left;
+  display: block;
+  position: relative;
+  padding-left: calc(var(--radio_size)*1.59);
+  margin-top: calc(var(--radio_size) *.54);
+  margin-bottom: calc(var(--radio_size) *.54);
+  margin-right: calc(var(--radio_size) *.54);
+  margin-left: calc(var(--radio_size) *.54);
+  cursor: pointer;
+  font-size: var(--radio_size);
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
 }
 
-.small-row {
-    margin: auto; /* center */
-    /* border: 2% solid rgb(212, 212, 212); */
-    padding: 2.5%;
-    /* border-radius: 1%; */
+/* Hide the browser's default radio button */
+.radio_container input {
+  float: left;
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
 }
 
+/* Create a custom radio button */
+.radio_checkmark {
+  float: left;
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: calc(var(--radio_size) * 1.13);
+  width: calc(var(--radio_size)  * 1.13);
+  background-color: #eee;
+  border-radius: 50%;
+}
+
+/* On mouse-over, add a grey background color */
+.radio_container:hover input ~ .radio_checkmark {
+  background-color: #ccc;
+}
+
+/* When the radio button is checked, add a blue background */
+.radio_container input:checked ~ .radio_checkmark {
+  background-color: #2196F3;
+}
+
+/* Create the indicator (the dot/circle - hidden when not checked) */
+.radio_checkmark:after {
+  content: "";
+  position: absolute;
+  display: none;
+}
+
+/* Show the indicator (dot/circle) when checked */
+.radio_container input:checked ~ .radio_checkmark:after {
+  display: block;
+}
+
+/* Style the indicator (dot/circle) */
+.radio_container .radio_checkmark:after {
+  float: left;
+  top: calc(var(--radio_size) *.41);
+  left: calc(var(--radio_size) *.41);
+  width: calc(var(--radio_size) *.36);
+  height: calc(var(--radio_size) *.36);
+  border-radius: 50%;
+  background: white;
+}
+
+/* END CUSTOM RADIO */
+
+
+
+.small-row-container {
+  clear:both;
+  /* margin: auto; */
+}
 
 .small-float-box {
-    /* width: 50%; */
-    /* height: 500px; */
-    float: left;
-    /* padding: 2.5%; */
-    border: 2% solid rgb(90, 90, 90);
-    border-radius: 12%;
-    /* vertical-align: center; */
+  line-height: normal;
+  background-color: rgb(214, 214, 214);
+  border: rgb(214, 214, 214);
+  display: inline-block; 
+  width: auto;
+  padding: 4px;
+  border-radius: 5px;
 }
+
+
 
 #console {
     clear:both; /*to float below other two divs*/
-    width: 100%;
+    width: 95%;
     height: 300px;
-    border: 2px solid rgb(90, 90, 90);
-    border-radius: 5px;
+    /* border: 2px solid rgb(90, 90, 90);
+    border-radius: 5px; */
 }
 
-/* slider */
-.slidecontainer {
-    width: 40%; /* Width of the outside container */
-  }
-  
-  /* The slider itself */
-  .slider {
-    -webkit-appearance: none;
-    width: 100%;
-    height: 5px;
-    border-radius: 5px;  
-    background: #d3d3d3;
-    outline: none;
-    opacity: 0.7;
-    -webkit-transition: .2s;
-    transition: opacity .2s;
-  }
 
-  #loader {
-    border: 16px solid #f3f3f3; /* Light grey */
-    border-top: 16px solid #3498db; /* Blue */
-    border-radius: 50%;
-    width: 120px;
-    height: 120px;
-    animation: spin 2s linear infinite;
-  }
-  
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-  
-  
-  
-  /* Mouse-over effects */
-  .slider:hover {
-    opacity: 1; /* Fully shown on mouse-over */
-  }
-  
-  .slider::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 15px;
-    height: 15px;
-    border-radius: 50%; 
-    background: #4958db;
-    cursor: pointer;
-  }
-  
-  .slider::-moz-range-thumb {
-    width: 15px;
-    height: 15px;
-    border-radius: 50%;
-    background: #4958db;
-    cursor: pointer;
-  }
+/* BEGIN Custom Slider */
 
-  /* JSXGraph */
-  .jsxgDefaultFont {
-    font-family: Verdana, Geneva, Tahoma, sans-serif;
-    font-size: 18;
-  }
-
-  .region_labels {
-    font-family: Verdana, Geneva, Tahoma, sans-serif;
-    font-size: 18;
-    border: 1px solid black;
-    background-color: black;
-    opacity: 50%;
-    padding: 5px;
-    border-radius:5px;
+.slider {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 10px;
+  border-radius: 5px;  
+  background: #7a7a7a;
+  outline: none;
+  opacity: 0.7;
+  -webkit-transition: .2s;
+  transition: opacity .2s;
 }
+
+  
+
+/* Mouse-over effects */
+.slider:hover {
+  opacity: 1; /* Fully shown on mouse-over */
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%; 
+  background: #4958db;
+  cursor: pointer;
+}
+
+.slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #4958db;
+  cursor: pointer;
+}
+
+/* END Custom Slider */
+
+/* JSXGraph */
+.jsxgDefaultFont {
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  font-size: 18;
+  border: 1px solid black;
+}
+
+.region_labels_dark, .region_labels_dark_highlight {
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  background: rgba(255, 255, 255, 0.438);
+  background-clip: padding-box;
+  opacity: 50%;
+  padding: 3px;
+  border-radius:10px;
+  text-shadow: /* text outline compatible with non-webkit */
+  -1px -1px 0 rgb(255, 255, 255),
+  1px -1px 0 rgb(255, 255, 255),
+  -1px 1px 0 rgb(255, 255, 255),
+  1px 1px 0 rgb(255, 255, 255);  
+}
+
+.region_labels_bright_mobile, .region_labels_bright_mobile_highlight {
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  background: rgba(255, 255, 255, 0.438);
+  background-clip: padding-box;
+  opacity: 50%;
+  padding: 3px;
+  border-radius:10px;
+  text-shadow: /* text outline compatible with non-webkit */
+   -1px -1px 0 rgb(54, 54, 54),
+  1px -1px 0  rgb(54, 54, 54),
+  -1px 1px 0   rgb(54, 54, 54),
+  1px 1px 0    rgb(54, 54, 54);
+}
+
+
+
+.region_labels_bright, .region_labels_bright_highlight {
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  background: rgba(255, 255, 255, 0.438);
+  background-clip: padding-box;
+  opacity: 50%;
+  padding: 3px;
+  border-radius:10px;
+  text-shadow: /* text outline compatible with non-webkit */
+   -1px -1px 0 rgb(255, 255, 255),
+  /* 1px -1px 0 rgb(180, 180, 180), */
+  /* -1px 1px 0  rgb(180, 180, 180), */
+  1px 1px 0  rgb(180, 180, 180);
+}
+
+  /* .region_labels_highlight {
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  background: rgba(255, 255, 255, 0.438);
+  background-clip: padding-box;
+  opacity: 50%;
+  padding: 5px;
+  border-radius:5px;
+  } */
+
+
+  /* For Mobile */
+  @media only screen and (max-width: 768px) {
+    /* For mobile phones: */
+    body {
+      font-size: 16px;
+    }
+
+    :root {
+      --slider_width: 200px;
+      --radio_size: 18px;
+    }
+
+    input, textarea, select, button {
+      font-size: 16px; 
+      font-family: Verdana, Geneva, Tahoma, sans-serif;
+    }
+
+    #float-box, #console, #jsx-box {
+      width: 95%;
+      margin-top: 10px;
+    }
+
+    #jsxbox {
+      height: 35vh;
+    }
+
+
+
+    
+
+    
+    .region_labels_dark, .region_labels_dark_highlight {
+      font-family: Verdana, Geneva, Tahoma, sans-serif;
+      background: rgba(255, 255, 255, 0.438);
+      background-clip: padding-box;
+      opacity: 50%;
+      padding: 1px;
+      border-radius:5px;
+      text-shadow: /* text outline compatible with non-webkit */
+      -1px -1px 0 rgb(255, 255, 255),
+      1px -1px 0 rgb(255, 255, 255),
+      -1px 1px 0 rgb(255, 255, 255),
+      1px 1px 0 rgb(255, 255, 255);  
+    }
+
+    .region_labels_bright, .region_labels_bright_highlight {
+      font-family: Verdana, Geneva, Tahoma, sans-serif;
+      background: rgba(255, 255, 255, 0.438);
+      background-clip: padding-box;
+      opacity: 50%;
+      padding: 1px;
+      border-radius:5px;
+      text-shadow: /* text outline compatible with non-webkit */
+      -1px -1px 0 rgb(255, 255, 255),
+      /* 1px -1px 0 rgb(180, 180, 180), */
+      /* -1px 1px 0  rgb(180, 180, 180), */
+      1px 1px 0  rgb(180, 180, 180);
+    }
+
+
+
+  }

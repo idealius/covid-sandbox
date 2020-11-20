@@ -1,19 +1,20 @@
+SASS for css nonsense
+
 covid sandbox
 
-probably have to install node or something to get CORS not to error out.
-
 using JSXGraph?
-research branch, fork, rollback of GIT
 create project
 decide license
 
 features:
 
-1. loading & displaying data
+*Biggest thing right now might be to check people per household?
 
-2. using DOM additional graphs
+1. loading & displaying data 11/9/2020 loading and displaying graphed data implemented
 
-3. variable-day rolling average
+2. using DOM additional graphs? 11/9/2020 Decided to overlap instead.
+
+3. variable-day rolling average 11/9/2020 Implemented
 
 4. linear regression for section of graph including sigma of area under line
 	-user chosen % threshold
@@ -21,10 +22,37 @@ features:
 	-sum of user chosen waves + the original data
 		-for all graphs or for one graph
 
-5. save graphs to cookies or something
+5. save graphs to cookies
+
+
+
+11/9/2020:
+
+6. top x button (in x days, or total dataset)
+
+7. 11/9/2020 clear button
+
+8. Check memory management / perhaps force regular garbage collection
+
+9. Rename to covid regional status check
+
+10. Add a wizard for region they are from, regions they are interested in, etc.
+
+11. Label position and arrow toward data?
+
+Bits:
+Add space before (deaths) in region label 11/10/2020 added
+add listbox with layer re-arranging 11/10/2020 not sure if this is actually needed
+need to add axis and date's pronto.
+
+added spanish flu conversion csv
+need to fix rolling avg for UK spanish flu
 
 
 Extras:
-
+must be careful with user reaction, for instance if showing 'vs sweden' button, perhaps also show norway and finland
+add 'surrounding region' in 'x' miles feature
+arrange by hemisphere?
 Convert to Excel
 Convert to Desmos
+Countries which have very few cases total compared to world total

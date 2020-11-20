@@ -1,0 +1,5 @@
+three things:
+totals data integrity
+arrows pointing to peaks
+and
+date axis labels

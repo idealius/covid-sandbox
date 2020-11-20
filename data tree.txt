@@ -4,12 +4,12 @@ Data
 			Cases
 			Deaths
 		Percent of Region Population
-			Cases
-			Deaths
+			Cases Implemented 11/9/2020
+			Deaths Implemented 11/9/2020
 	State
 		Absolute
 			Cases
 			Deaths
 		Percent of Region Population
-			Cases
-			Deaths
+			Cases Implemented 11/9/2020
+			Deaths Implemented 11/9/2020
