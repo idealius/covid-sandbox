@@ -283,11 +283,11 @@ input, textarea, select, button {
 
     :root {
       --slider_width: 200px;
-      --radio_size: 18px;
+      --radio_size: 12px;
     }
 
     input, textarea, select, button {
-      font-size: 16px; 
+      font-size: 14px; 
       font-family: Verdana, Geneva, Tahoma, sans-serif;
     }
 
