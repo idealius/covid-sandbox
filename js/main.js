@@ -532,18 +532,28 @@ const COVID_SANDBOX_NS = {
 
     },
 
+    duplicate_graph_check: function(_selected_region_parent_data, _index) {
+        var src = _selected_region_parent_data[_index].region;
+
+        for (var i = 0; i < this.graphs.length; i++) {
+            if (this.graphs[i].graph_region_label_obj.plaintext.search(src) != -1) return true;
+        }
+        return false;
+    },
+
     //Create namespace's regions_of_interest and calls constructor for COVID_SANDBOX.NS.graphs where each graph's information is stored (including JSXGraph's)
     add_region_to_graph: function(_selected_region_parent_data, _index) {
   
         if (_index == -1) _index = _selected_region_parent_data.length-1;
         var _selected_region = _selected_region_parent_data[_index];
-   
+        
+        if (this.duplicate_graph_check(_selected_region_parent_data, _index)) return -1;
 
         //Used for keeping track of the highest value for bounding box settings
         var header_factor = 8; // when set to 5 adds 20% to the top.
         new_max_affected = this.get_max_base_affected(_selected_region, _selected_region.columns.affected_column);
-        peak = new_max_affected.y
-        run = new_max_affected.x
+        peak = new_max_affected.y;
+        run = new_max_affected.x;
         new_max_affected.y = new_max_affected.y + new_max_affected.y / header_factor
         // var data_context = this.regions_of_interest[__selected_region]._region_obj
         if (new_max_affected.y > this.max_affected.y) this.max_affected.y = new_max_affected.y;
@@ -595,21 +605,22 @@ const COVID_SANDBOX_NS = {
 
         //Interpret_context gives us "Cases" or "Deaths" without the "Per Capita" part:
         var label_context = this.interpret_context(_selected_region_parent_data[_index].context);
-        inform(this.interpret_context(_selected_region_parent_data[_index].context));
-        inform(_selected_region);
+        // inform(this.interpret_context(_selected_region_parent_data[_index].context));
+        // inform(_selected_region);
         // var region_txt = _selected_region.data[0][_selected_region.columns.region_column] + " (" + label_context.affected + ")";
         var region_txt = _selected_region.region + " (" + label_context.affected + ")";
 
         inform(region_txt);
 
+        var _font_size = this.browser_context_list[this.browser_context].graph_region_font_size;
 
         var label = { x: run, 
-                      y: peak + peak / 10
+                      y: peak + peak / 8
                     };
 
         var region_txt_obj = this.board.create('text', [
             //X,Y value:
-            label.x, label.y, //cant do this because then jsxgraph cuts off part of the .size making difficult to highlight
+            label.x, label.y, //careful not to go too far right or jsxgraph crops text object's box size for dragging
             // this.max_affected.x / 2, peak / 2,
             region_txt
             ], {
@@ -619,7 +630,7 @@ const COVID_SANDBOX_NS = {
             highlightCssClass: region_labels_style + "_highlight",
             // strokeColor: 'red',
             // isLabel: true,
-            fontSize: this.browser_context_list[this.browser_context].graph_region_font_size,
+            fontSize: _font_size,
             strokeColor: my_color,
             // highlight: false,
             // rotate: 90,// only works if display is set to internal
@@ -674,7 +685,57 @@ const COVID_SANDBOX_NS = {
             this.update_rolling_average(_selected_region_parent_data);
         else 
             this.update(); //required to update graph's new curve
+
+
         
+    },
+
+    arrange_region_labels: function() {
+        _graph_max_affected = [];
+
+        var _box = this.board.getBoundingBox(); //returns 4 element array: left, upper, right, lower
+        var _vert_space = _box[1];
+
+        //Get values
+        for (var i = 0; i < this.graphs.length; i++) {
+            _graph_max_affected.push(this.get_max_graph_affected(i));
+            _graph_max_affected[i].index = i;
+            // inform(_graph_max_affected);
+        }
+        
+        //Sort
+        _graph_max_affected.sort(function(a, b) {return b.y - a.y;}); //sort by descending
+ 
+        //Arrange
+        var row_size = 8; // number of labels in each column
+        _vert_space = _vert_space - _vert_space / row_size; // just to lower it a bit
+        var column_size = 200; //space between columns
+        var min = _vert_space / (row_size + 3); //buffer between x axis and labels
+        for (var i = 0; i < this.graphs.length; i++) {
+            var i2 = i+1;
+            // if (_graph_max_affected[i].x < this.max_date / 2) {
+            //     x = this.max_date / 2;
+            // }
+            // else
+            x = this.max_date + 150;
+            y = _vert_space  - (_vert_space / row_size * i2) + min;
+            while (y < min) { // move over to another column.
+                y = y + _vert_space;
+                // if (y < _vert_space) 
+                x += column_size;
+            }
+            // inform(y);
+            var _index = _graph_max_affected[i].index;
+            var _region_label_obj = this.graphs[_index].graph_region_label_obj;
+            var find_result = _region_label_obj.plaintext.lastIndexOf('.');
+            if (find_result != -1) {
+                _region_label_obj.plaintext = _region_label_obj.plaintext.slice(find_result+1, _region_label_obj.plaintext.length);
+            }
+            _region_label_obj.setText(i2 + '. ' + _region_label_obj.plaintext); //this actually works to update text
+            _region_label_obj.setPosition(JXG.COORDS_BY_USER, [x,y]); //update text label position
+            this.graphs[_index].graph_arrow_obj.point1.setPosition(JXG.COORDS_BY_USER, _region_label_obj.coords.usrCoords); //update arrow position
+        }
+        this.board.update();
     },
     
     //Clip by active graph data potentially put through rolling average / other transformations versus underlying actual data.
@@ -728,11 +789,11 @@ const COVID_SANDBOX_NS = {
                 _total += _data[i][_affected_column];
             }
             else {
-                // if (i == 0) { //Just in case this has a header Doesn't appear to be needed 11/23/20
-                //     counter ++;
-                //     _prev_region = _check_region;
-                //     continue;
-                // }
+                if (i == 0) { //Just in case this has a header Doesn't appear to be needed 11/23/20
+                    counter ++;
+                    _prev_region = _check_region;
+                    continue;
+                }
 
                 _region_list.push({ region:_data[i-1][_region_name_column],
                                     total:_total
@@ -759,6 +820,8 @@ const COVID_SANDBOX_NS = {
             if (try_region != -1) this.add_region_to_graph(this.regions_of_interest, -1);
             else alert("error adding region: " + _region_list[i].region);
         }
+
+        this.arrange_region_labels();
         
         //Log full list to textarea
         var context_str = new this.header_obj(_context);
@@ -1061,6 +1124,8 @@ const COVID_SANDBOX_NS = {
         this.clip_bounding_box_by_graph.parent = this;
         this.push_region_obj.parent = this;
         this.update_arrow_peak.parent = this;
+        this.arrange_region_labels.parent = this;
+        this.duplicate_graph_check.parent = this;
 
         delete this.init;
         return this;
@@ -1251,6 +1316,13 @@ $(document).ready(function() {
         COVID_SANDBOX_NS.fill_regions_dropdown("-- Select --");
         COVID_SANDBOX_NS.fill_regions_dropdown(COVID_SANDBOX_NS.affected_data[COVID_SANDBOX_NS.get_context()].region_list);
     });
+
+    //Event handler for arrange button
+    $('#arrange_button').click(function() {
+        "use strict";
+        COVID_SANDBOX_NS.arrange_region_labels();
+    });
+
 
     //Event handler for clip bounding box
     $('#clip_bound_button').click(function() {
