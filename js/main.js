@@ -1311,6 +1311,9 @@ $(document).ready(function() {
             COVID_SANDBOX_NS.add_region_to_graph(COVID_SANDBOX_NS.regions_of_interest, -1, COVID_SANDBOX_NS.uk_spanish_flu_deaths);
         }
         COVID_SANDBOX_NS.set_context(prior_context.region, prior_context.affected);
+
+        COVID_SANDBOX_NS.clip_bounding_box_by_graph(); 
+        COVID_SANDBOX_NS.arrange_region_labels();
         // Update regions dropdown:
         $('#regions_dropdown').empty();
         COVID_SANDBOX_NS.fill_regions_dropdown("-- Select --");
@@ -1325,6 +1328,13 @@ $(document).ready(function() {
         COVID_SANDBOX_NS.arrange_region_labels();
     });
 
+    //Event handler for reframe button
+    $('#reframe_button').click(function() {
+        COVID_SANDBOX_NS.clip_bounding_box_by_graph(); 
+        COVID_SANDBOX_NS.arrange_region_labels();
+    });
+
+    
     //Event handler for clear button
     $('#clear_button').click(function() {
         "use strict";
@@ -1379,6 +1389,9 @@ $(document).ready(function() {
                 // COVID_SANDBOX_NS.create_region_of_interest(COVID_SANDBOX_NS.regions_of_interest, buffer[i].region, buffer[i].context)
                 COVID_SANDBOX_NS.add_region_to_graph(COVID_SANDBOX_NS.regions_of_interest, i, COVID_SANDBOX_NS.regions_of_interest[i].context);
             }
+
+            COVID_SANDBOX_NS.clip_bounding_box_by_graph(); 
+            COVID_SANDBOX_NS.arrange_region_labels();
             
             COVID_SANDBOX_NS.hold_resize = false;
           }, 500, "Graph update" + _date_timer.getTime());

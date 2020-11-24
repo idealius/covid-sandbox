@@ -4,6 +4,11 @@
     font-size: 19;
 } 
 
+p {
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  font-size: 12;
+}
+
 :root {
   --slider_width: 400px;
   --radio_size: 16px;
@@ -279,6 +284,12 @@ input, textarea, select, button {
     body {
       font-size: 16px;
     }
+
+    p {
+      font-family: Verdana, Geneva, Tahoma, sans-serif;
+      font-size: 11;
+    }
+    
 
     :root {
       --slider_width: 200px;

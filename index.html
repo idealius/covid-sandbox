@@ -10,7 +10,6 @@
   <meta name="author" content="Leo Idler">
 
   <link rel="stylesheet" type="text/css" href="css/styles.css">
-  <link rel="stylesheet" type="text/css" href="third party/jstree/themes/default/style.min.css" />
   <!-- <link rel="stylesheet" type="text/css" href="css/styles.css?v=1.0"> -->
   <!-- <link rel="stylesheet" type="text/css" href="third party/jsxgraph.css" /> -->
    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/jsxgraph@1.1.0/distrib/jsxgraph.css" />
@@ -63,6 +62,17 @@
   </div>
 
   <div id = "horiz-spacer"></div>
+  <div class="small-float-box">Add top 
+    <input type="text" id="top_regions" class="" name="top_regions" value="6" style="width: 20px">  
+    rising regions across last 
+    <input type="text" id="top_regions_days" class="" name="top_regions_days" value="14" style="width: 32px"> 
+      days
+    <button type="button" id="top_regions_button" >Add</button>
+  </div>
+
+  <div id = "horiz-spacer"></div>
+
+  
 
   Add State/Country: <select id='regions_dropdown'><option>-- Select --</option></select>
 
@@ -70,37 +80,27 @@
     <button type="button" id="clear_button" >Clear Graph</button>
   </div>
 
-  <div id = "horiz-spacer"></div>
-
-  
-
 
   <div id = "horiz-spacer"></div>
 
   <div id = "horiz-spacer"></div>
 
   <div class="small-float-box">
-    <button type="button" id="arrange_button" >Arrange and Rank Labels</button>
-
+    <button type="button" id="reframe_button" >Both</button> :
     <button type="button" id="clip_bound_button" >Clip Bounding Box</button>
+    <button type="button" id="arrange_button" >Arrange and Rank Labels</button>
   </div>
 
   <div id = "horiz-spacer"></div>
 
-  <div class="small-float-box">Add top 
-      <input type="text" id="top_regions" class="" name="top_regions" value="6" style="width: 20px">  
-      rising regions across last 
-      <input type="text" id="top_regions_days" class="" name="top_regions_days" value="14" style="width: 32px"> 
-        days. 
-      <button type="button" id="top_regions_button" >Add</button>
-    </div>
+
 
     <div id = "horiz-spacer"></div>
 
     <div class="small-float-box">
       <input type="checkbox" id="sevendayavg" class="" name="sevendayavg" value="1" checked>
       <label for="sevendayavg">Rolling day average</label><br> <!--&lt = '<'' -->
-      <input type="text" id="rolling_days" class="" name="rolling_days" value="7" style="width: 20px">
+      <input type="text" id="rolling_days" class="" name="rolling_days" value="15" style="width: 20px">
       <input type="range" min="3" max="100" value="7" style="width: var(--slider_width)" class="slider" id="rollingavgslider">
     </div>
 
@@ -118,12 +118,14 @@
   <div id = "horiz-spacer"></div>
   <br>
   <p style="font-size:11px;">1. Many region's reporting agencies warn the most recent days are subject to change. (Say, the last 3-14 days on average.)</p>
-  <p style="font-size:11px;">2. The congruent seasonality of COVID-19 and other transmissable diseases isn't well understood.</p>
-  <p style="font-size:11px;">3. Ranking in graph is all days and dependent on regions chosen to display in the graph (with rolling day average applied), not out of the dataset pool. Ranking in the text area below is absolute for respective dataset (US or Global) and does not have the rolling average applied.</p>
-  <p style="font-size:11px;">4. Spanish Flu was estimated from old books: https://www.desmos.com/calculator/7qsm3iazze</p>
-  <p style="font-size:11px;">Under Construction 11/23/2020, sources from Johns Hopkins</p>
+  <p style="font-size:11px;">2. a. The regions with high peaks for cases and deaths early in the pandemic are not represented well because the testing was most likely lower, and the deaths were most likely higher.</p>
+  <p style="font-size:11px;">2. b. The congruent seasonality of COVID-19 and other transmissable diseases isn't well understood.</p>
+  <p style="font-size:11px;">3. a. Rankings in the graph is all days and dependent on regions selected to display in the graph (with rolling day average applied), regions outside of the DISPLAYED are NOT taken into account.</p>
+  <p style="font-size:11px;">3. b. Ranking in the text area below is absolute for respective dataset (US or Global) and does not have the rolling average applied, though it is limited by the number of days selected.</p>
+  <p style="font-size:11px;">4. UK Spanish flu deaths data was estimated from <i>Epidemic a Survey, by Edwin Jordan</i>: <a href="https://www.desmos.com/calculator/g0g4tgjdcc">https://www.desmos.com/calculator/g0g4tgjdcc</a></p>
   <div><textarea id="console" rows="10" cols="80" wrap="soft"></textarea></div>
-
+  <p style="font-size:11px;">Under Construction 11/23/2020, sources from Johns Hopkins.
+  <p style="font-size:11px;">Website Author: Leo E. Idler</p>
 <script src="js/main.js"></script>
 
 </body>
