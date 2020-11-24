@@ -1321,6 +1321,8 @@ $(document).ready(function() {
     $('#top_regions_button').click(function() {
         "use strict";
         COVID_SANDBOX_NS.add_top_regions($('#top_regions').val(), $('#top_regions_days').val());
+        COVID_SANDBOX_NS.clip_bounding_box_by_graph(); 
+        COVID_SANDBOX_NS.arrange_region_labels();
     });
 
     //Event handler for clear button
