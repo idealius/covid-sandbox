@@ -5,6 +5,7 @@
 //*Depecrated, now uses .js files because of CORs
 const GOOGLE_DRIVE_DATA = false;
 
+
 try {
     const INFORM_VERBOSE = true; //Console logging enabled, then alias 'inform' below
     // if (INFORM_VERBOSE) var inform = console.log.bind(window.console)
@@ -37,6 +38,8 @@ function isString(x) {
 const COVID_SANDBOX_NS = {
 
     point: function(x,y){this.x=x; this.y=y;},
+
+    x_axis_style: 'dates',
 
     //For holding updating graph regions on window.resize()
     hold_resize: false,
@@ -315,8 +318,211 @@ const COVID_SANDBOX_NS = {
         return _data;
     },
 
-    
+    //Code based on https://www.intmath.com/cg3/jsxgraph-axes-ticks-grids.php
+    //Dates on x-axis
+    alt_axes: function() {
+        JXG.Options.slider.ticks.majorHeight = 0;
 
+        this.board = JXG.JSXGraph.initBoard('jsxbox',{
+          boundingbox: [-50,this.max_affected.y,this.max_date+20,-.05], 
+          axis:false, 
+          renderer: 'canvas',
+          showCopyright:false,  
+          showNavigation:false,
+          zoom: {factorX:1.15,factorY: 1.15,wheel:true,needshift:false,min:0.1},
+          pan: {needTwoFingers: false, needShift: false}
+         } 
+        );
+  
+        var xAxPt0 = this.board.create('point', [0,0], {
+            needsRegularUpdate: false, visible: false});
+        var xAxPt1 = this.board.create('point', [1,0], {
+            needsRegularUpdate: false, visible: false});
+
+        var xaxis = this.board.create('axis', 
+            [xAxPt0,xAxPt1], {
+            needsRegularUpdate: false,
+            strokeColor: 'grey',
+            });
+
+        var vert_offset = -.04;
+        // var xaxis_years = this.board.create('axis', [[0,vert_offset],[1,vert_offset]],
+        //     {
+        //     needsRegularUpdate: false,
+        //     strokeColor: 'grey',
+        //     visible: 'false'
+        // });
+
+        xaxis.removeTicks(xaxis.defaultTicks);
+        // xaxis_years.removeTicks(xaxis_years.defaultTicks);
+
+        var run = []//[...Array(365).keys()]; //this.max_date
+        var date_labels = [];
+        var start_date = new Date(2020, 0, 21); //months starts at 0 instead of 1, so this is 1/21/2020
+        var date_conversion = 1000*60*60*24;
+        var years_run = [];
+        var years_array = [];
+        var last_year = 0;
+        const month_names = ["Jan", "Feb", "Mar", "Apr", "May", "June",
+        "July", "Aug", "Sept", "Oct", "Nov", "Dec"
+      ];
+        // for (var i = 0; i < this.max_affected.x+60; i++) {
+        for (var i = 0; i < 365*3; i++) {
+            var new_date = new Date(start_date.getTime() + i * date_conversion);
+            if (new_date.getDate() == '1') {
+                var year = String(new_date.getFullYear());
+                year = year.slice(2);
+                years_array.push('\'' + year);
+                years_run.push(i);
+                // var date_str = (new_date.getMonth() + 1) + '/' + new_date.getDate() //+ '/' + year;  //have to add one since months start at 0
+                var date_str = month_names[new_date.getMonth()];  // + year;
+                run.push(i);
+                date_labels.push(date_str);
+            }
+        }
+        
+        //Months
+        var ticks = this.board.create('ticks', [xaxis, 
+            run], {
+            labels: date_labels,
+            majorHeight: 15, 
+            drawLabels: true, 
+            needsRegularUpdate: false,
+
+            visible: 'false',
+            label: {
+                cssClass:"region_labels_bright",
+                highlight: false,
+                offset:[0,-20],
+                fontsize:this.browser_context_list[this.browser_context].axis_font_size,
+                anchorX: 'left', anchorY: 'bottom',
+            },
+            // precision:5
+          });
+
+        // var ticks_years = this.board.create('ticks', [xaxis_years, 
+        // years_run], {
+        // labels: years_array,
+        // majorHeight: 15, 
+        // drawLabels: true, 
+        // needsRegularUpdate: false,
+        //     label: {
+        //         cssClass:"region_labels_bright",
+        //         highlight: false,
+        //         offset:[0,0],
+        //         fontsize:this.browser_context_list[this.browser_context].axis_font_size,
+        //         anchorX: 'left', anchorY: 'bottom',
+        //     },
+        // });
+
+        inform(ticks);
+        // var xTicks, yTicks, bb;
+        var yTicks, bb;
+        // xaxis.defaultTicks.ticksFunction = function () { return xTicks; };
+        this.board.fullUpdate(); // full update is required
+        var coords=[];
+        var xPt0 = function(offset) {
+            coords = new JXG.Coords(JXG.COORDS_BY_SCREEN, [0, offset], COVID_SANDBOX_NS.board);	
+            return coords.usrCoords;
+        }
+        var xPt1 = function(offset) {
+            coords = new JXG.Coords(JXG.COORDS_BY_SCREEN, [COVID_SANDBOX_NS.board.canvasWidth, offset], COVID_SANDBOX_NS.board);
+            return coords.usrCoords;
+        }
+        var yAxPt0 = this.board.create('point', [0,0], {
+            needsRegularUpdate: false, visible: false});
+        var yAxPt1 = this.board.create('point', [0,1], {
+            needsRegularUpdate: false, visible: false});	
+
+        var yaxis = this.board.create('axis', [yAxPt0,yAxPt1], {
+            needsRegularUpdate: false, 
+            ticks:{
+                scaleSymbol: '%',
+                label:{offset:[10,0],precision:8}
+            } 
+          }
+        );
+
+        yaxis.defaultTicks.ticksFunction = function () { return yTicks; };
+        this.board.fullUpdate();
+        var yPt0 = function(offset) {
+            coords = new JXG.Coords(JXG.COORDS_BY_SCREEN, [offset,COVID_SANDBOX_NS.board.canvasHeight], COVID_SANDBOX_NS.board);
+            return coords.usrCoords;
+        }
+        var yPt1 = function(offset) {
+            coords = new JXG.Coords(JXG.COORDS_BY_SCREEN, [offset,0], COVID_SANDBOX_NS.board);
+            return coords.usrCoords;
+        }
+        var setTicks = function() {
+            bb = COVID_SANDBOX_NS.board.getBoundingBox();
+            yTicksVal = Math.pow(10, Math.floor((Math.log(0.6*(bb[1]-bb[3])))/Math.LN10)); //changed from .6 to .006
+            if( (bb[1]-bb[3])/yTicksVal > 5) {
+              yTicks = yTicksVal;
+            } else {
+              yTicks = 0.5* yTicksVal;
+            }
+            COVID_SANDBOX_NS.board.fullUpdate(); // full update is required
+        }
+        setTicks();
+        var origPt = this.board.create('point', [0,0],{visible:false});
+        this.board.on('boundingbox', function() {
+            bb = COVID_SANDBOX_NS.board.getBoundingBox();
+            mycoordsY = new JXG.Coords(JXG.COORDS_BY_USER, [0,origPt.Y()], COVID_SANDBOX_NS.board);
+            yPixels = mycoordsY.scrCoords[2];
+            mycoordsX = new JXG.Coords(JXG.COORDS_BY_USER, [0,origPt.X()], COVID_SANDBOX_NS.board);
+            xPixels = mycoordsX.scrCoords[1];
+
+            //Next section commented out because it slows down too much:
+            // if( 30 > yPixels) {	
+            //     xAxPt0.moveTo (xPt0(40),0); //4
+            //     xAxPt1.moveTo (xPt1(40),0); //4
+            //     xaxis.point1.setAttribute({frozen: true});
+            //     xaxis.point2.setAttribute({frozen: true});
+            //     xaxis.setAttribute({strokeColor: '#111'});
+            //     ticks.visProp.label.offset = [0,-20];
+            // } else if( yPixels > COVID_SANDBOX_NS.board.canvasHeight - 30) {
+            //     xAxPt0.moveTo (xPt0(COVID_SANDBOX_NS.board.canvasHeight -10),0); //-10
+            //     xAxPt1.moveTo (xPt1(COVID_SANDBOX_NS.board.canvasHeight - 10),0); //-10
+            //     xaxis.point1.setAttribute({frozen: true});
+            //     xaxis.point2.setAttribute({frozen: true});
+            //     xaxis.setAttribute({color: '#111'});
+            //     xaxis.setAttribute({strokeColor: '#111'});
+            //     ticks.visProp.label.offset = [0,20];
+            // } else {
+            //     xaxis.point1.setAttribute({frozen: false});
+            //     xaxis.point2.setAttribute({frozen: false});
+            //     xaxis.setAttribute({color:'#666'});
+            //     xAxPt0.moveTo ([0,0],0);
+            //     xAxPt1.moveTo ([1,0],0);
+            //     ticks.visProp.label.offset = [0,-20];
+            // }	
+            if( 30 > xPixels) {
+                yAxPt0.moveTo (yPt0(25),0); //5
+                yAxPt1.moveTo (yPt1(25),0); //5
+                yaxis.point1.setAttribute({frozen: true});
+                yaxis.point2.setAttribute({frozen: true});
+                yaxis.setAttribute({strokeColor: '#111'});
+                yaxis.defaultTicks.visProp.label.offset = [7,0]; //7
+            } else if( xPixels > COVID_SANDBOX_NS.board.canvasWidth-30) {
+
+                yAxPt0.moveTo (yPt0(COVID_SANDBOX_NS.board.canvasWidth-25),0); //-5
+                yAxPt1.moveTo (yPt1(COVID_SANDBOX_NS.board.canvasWidth-25),0); //-5
+                yaxis.point1.setAttribute({frozen: true});
+                yaxis.point2.setAttribute({frozen: true});			
+                yaxis.setAttribute({strokeColor: '#111'});
+                yaxis.defaultTicks.visProp.label.offset = [-35,0]; //-28
+                yaxis.defaultTicks.visProp.label.align = 'right';
+            } else {           
+                yaxis.point1.setAttribute({frozen: false});
+                yaxis.point2.setAttribute({frozen: false});
+                yaxis.setAttribute({strokeColor: '#666'});
+                yAxPt0.moveTo ([0,0],0);
+                yAxPt1.moveTo ([0,1],0);
+                yaxis.defaultTicks.visProp.label.offset = [7,0]; //7
+            }
+            setTicks();
+        });
+    },
 
     //Create a blank graph with dimensions defined by the first region's data (Alabama)
     initialize_graph: function() {
@@ -330,26 +536,16 @@ const COVID_SANDBOX_NS = {
         var _region_column = _parent_data.columns.region_column;
         var _data = this.affected_data[context].data;
         var temp_region = [];
-        // this.push_region_obj(temp_region, context, _data[0].data, _data[0][_region_column]);
         this.create_region_of_interest(temp_region, _data[0][_region_column], context);
 
         var _affected_column = _parent_data.columns.affected_column;
         this.max_affected = this.get_max_base_affected(temp_region[0], _affected_column);
         this.max_affected.y = this.max_affected.y + this.max_affected.y / 8;
 
-
-
-   
-
-        //this.max_date = Math.floor((this.regions_of_interest[0][this.regions_of_interest[0].length-1]["Date"] - this.regions_of_interest[0][0]["Date"])/(1000*3600*24));
         this.max_date = temp_region[0].data.length;
 
-        // this.board = JXG.JSXGraph.initBoard('jsxgbox', {boundingbox:[-5,5,5,-5], axis:true, showNavigation:true, showCopyright:true});
-
-  
         JXG.Options.text.cssDefaultStyle = '';
         JXG.Options.text.highlightCssDefaultStyle = '';
-
 
         var new_browser_context = this.browser_context_template("desktop", 18, false, 14);
         Object.assign(this.browser_context_list, new_browser_context);
@@ -357,74 +553,81 @@ const COVID_SANDBOX_NS = {
         new_browser_context = this.browser_context_template("mobile", 11, true, 10);
         Object.assign(this.browser_context_list, new_browser_context);
 
-
         this.viewport_width = $(window).width();
         this.viewport_height = $(window).height();
 
         if (this.viewport_width < 768) this.browser_context = 'mobile';
         else this.browser_context = 'desktop';
-
-        this.board = JXG.JSXGraph.initBoard('jsxbox', {
-            boundingbox: [-50,this.max_affected.y,this.max_date+20,-.0005],
-            // boundingbox: [0,10,10,0],
-            //keepaspectratio: true,
-            showcopyright: false,
-            axis: true,
-            renderer: 'canvas',
-            defaultAxes: {
-                x: {
-                    strokeColor: 'grey',
-                    ticks: {
-                        visible: 'inherit',
-                        fontsize: 5,
-                        label: {
-                            fontsize:this.browser_context_list[this.browser_context].axis_font_size
-                        }
+        if (this.x_axis_style == 'dates') {
+            this.alt_axes();
+        }
+        else {
+            this.board = JXG.JSXGraph.initBoard('jsxbox', {
+                boundingbox: [-50,this.max_affected.y,this.max_date+20,-.05],
+                // boundingbox: [0,10,10,0],
+                //keepaspectratio: true,
+                showcopyright: false,
+                axis: true,
+                renderer: 'canvas',
+                defaultAxes: {
+                    x: {
+                        strokeColor: 'grey',
+                        ticks: {
+                            visible: 'inherit',
+                            fontsize: 5,
+                            label: {
+                                fontsize:this.browser_context_list[this.browser_context].axis_font_size
+                            }
+                        },
+                        
+                        // withLabel: true
                     },
-                    
-                    // withLabel: true
-                },
-                y: {
-                    strokeColor: 'grey',
-                    ticks: {
-                        visible: 'inherit',
-                        fontsize: 5,
-                        label: {
-                            fontsize:this.browser_context_list[this.browser_context].axis_font_size
+                    y: {
+                        strokeColor: 'grey',
+                        ticks: {
+                            visible: 'inherit',
+                            fontsize: 5,
+                            label: {
+                                fontsize:this.browser_context_list[this.browser_context].axis_font_size
+                            }
                         }
-                    }
-                    
-                    // withLabel: true
+                        
+                        // withLabel: true
+                    },
                 },
-            },
-            zoom: {
-                factorX: 1.15,
-                factorY: 1.15,
-                wheel: true,
-                needshift: false,
-                min: 0.1
-            },
-            pan: {
-                needTwoFingers: false,
-                needShift: false
-            },
-    
-            showZoom: false,
-            showNavigation: false
-        });
+                zoom: {
+                    factorX: 1.15,
+                    factorY: 1.15,
+                    wheel: true,
+                    needshift: false,
+                    min: 0.1
+                },
+                pan: {
+                    needTwoFingers: false,
+                    needShift: false
+                },
+        
+                showZoom: false,
+                showNavigation: false
+            });
 
+            this.add_axes();
+            this.board.on('update', function (){ COVID_SANDBOX_NS.update_axes();});
+    
+        }
+        
         inform(this.board);
 
-        var x = [...Array(this.max_date).keys()];
-        var y = this.extract_affected(temp_region[0].data, temp_region[0].columns.affected_column);
+        // var x = [...Array(this.max_date).keys()];
+        // var y = this.extract_affected(temp_region[0].data, temp_region[0].columns.affected_column);
 
 
-        this.add_axes();
+     
 
         this.board.update();
 
         // this.board.on('update', this.update_axes());
-        this.board.on('update', function (){ COVID_SANDBOX_NS.update_axes();});
+
 
         // this.regions_of_interest.pop(); //remove Alabama from our list.
         delete temp_region;
@@ -540,9 +743,9 @@ const COVID_SANDBOX_NS = {
 
         for (var i = 0; i < this.graphs.length; i++) {
             if (this.graphs[i].graph_region_label_obj.plaintext.search(src) != -1) {
-                inform(this.graphs[i]);
+                // inform(this.graphs[i]);
                 if (_context == this.graphs[i].context) return true;
-                inform (_context);
+                // inform (_context);
                 // inform(this.graphs[i].context);
             }
         }
@@ -698,7 +901,7 @@ const COVID_SANDBOX_NS = {
 
         var _box = this.board.getBoundingBox(); //returns 4 element array: left, upper, right, lower
         var _vert_space = _box[1];
-        inform(this.graphs);
+        // inform(this.graphs);
         //Get values
         for (var i = 0; i < this.graphs.length; i++) {
             _graph_max_affected.push(this.get_max_graph_affected(i));
@@ -710,7 +913,8 @@ const COVID_SANDBOX_NS = {
         _graph_max_affected.sort(function(a, b) {return b.y - a.y;}); //sort by descending
  
         //Arrange
-        var left = 100;
+        var bounds = this.board.getBoundingBox();
+        var left = bounds[0] + 100;
         var vert_percent = 75;
         var row_size = 4; // number of labels in each column
         // _vert_space = _vert_space - _vert_space / row_size; // just to lower it a bit
@@ -730,7 +934,6 @@ const COVID_SANDBOX_NS = {
 
             while (y < min) { // move over to another column.
                 y += _vert_space;
-                // if (y < _vert_space) 
                 x += column_size;
             }
             
@@ -966,7 +1169,7 @@ const COVID_SANDBOX_NS = {
 
     //Wrapper for board update so we can adjust axes
     update: function() {
-        this.update_axes();
+        if (this.x_axis_style != 'dates') this.update_axes();
         this.board.update();
     },
 
@@ -1031,14 +1234,8 @@ const COVID_SANDBOX_NS = {
     var _data = this.affected_data[context].data;
     
     var data_buffer = [];
-    // this.create_region_of_interest(_data[0][_region_column]);
-
-    // var _region_data = this.affected_data_template(context, _data);
-
-
 
     var _check_region = "";
-    var counter = 0;
     var already_alerted = false;
     for (var i = 0; i < _data.length; i++) { //no header
         // _check_region = _data[i]['Province_State'];
@@ -1055,14 +1252,7 @@ const COVID_SANDBOX_NS = {
         }
         
         data_buffer.push(_data[i]);
-        
-        // //convert strings from our table that should be numbers to numbers
-        // for (var i_2 = 0, len = _to_number[i_2].length; i_2 < len; i_2++) { 
-        //     data_buffer[counter][_to_number[i_2]] = Number(data_buffer[counter][_to_number[i_2]])
-        // }
-        // //convert dates to date types
-        // data_buffer[counter][_to_date] = new Date(data_buffer[counter][_to_date]);
-        // counter ++;
+    
     }
 
     this.push_region_obj(_parent_array, context, data_buffer, _region);
@@ -1141,6 +1331,7 @@ const COVID_SANDBOX_NS = {
         this.update_arrow_peak.parent = this;
         this.arrange_region_labels.parent = this;
         this.duplicate_graph_check.parent = this;
+        this.alt_axes.parent = this;
 
         delete this.init;
         return this;
@@ -1360,16 +1551,21 @@ $(document).ready(function() {
 
     //Event for window size change:
     $( window ).resize(function() {
+        // var window_size = $(window).innerWidth;
+        var window_size = document.body.clientWidth;;
+        inform(window_size);
         waitForFinalEvent(function(){
             inform("Called");
-            if (this.width == COVID_SANDBOX_NS.viewport_width) {
+            if (Math.abs(window_size - COVID_SANDBOX_NS.viewport_width) < 50) {
+
                 COVID_SANDBOX_NS.hold_resize = false;
                 return;
             }
+            inform(window_size, COVID_SANDBOX_NS.viewport_width);
             if (COVID_SANDBOX_NS.hold_resize) return;
             COVID_SANDBOX_NS.hold_resize = true;
 
-            COVID_SANDBOX_NS.viewport_width = $(window).width;
+            COVID_SANDBOX_NS.viewport_width = window_size;
     
             var _region_list = COVID_SANDBOX_NS.regions_of_interest;
             var buffer = [];
