@@ -50,6 +50,8 @@
     <span class="radio_checkmark"></span>
     </label>
   </div>
+
+
   <div class="small-float-box">
     <label class="radio_container">US
     <input type="radio" id="region_context_us" class="radio_checkmark" name="region_context" value="US" checked>
@@ -70,20 +72,17 @@
     <button type="button" id="top_regions_button" >Add</button>
   </div>
 
-  <div id = "horiz-spacer"></div>
+  <!-- <div id = "horiz-spacer"></div> -->
 
   
-
-  Add State/Country: <select id='regions_dropdown'><option>-- Select --</option></select>
-
   <div class="small-float-box">
-    <button type="button" id="clear_button" >Clear Graph</button>
-  </div>
+  Add State/Country: <select id='regions_dropdown'><option>-- Select --</option></select>
+</div>
 
 
-  <div id = "horiz-spacer"></div>
+  <!-- <div id = "horiz-spacer"></div> -->
 
-  <div id = "horiz-spacer"></div>
+  <!-- <div id = "horiz-spacer"></div> -->
 
   <div class="small-float-box">
     <button type="button" id="reframe_button" >Both</button> :
@@ -91,30 +90,56 @@
     <button type="button" id="arrange_button" >Arrange and Rank Labels</button>
   </div>
 
-  <div id = "horiz-spacer"></div>
+  <!-- <div id = "horiz-spacer"></div> -->
 
 
 
-    <div id = "horiz-spacer"></div>
-
-    <div class="small-float-box">
-      <input type="checkbox" id="sevendayavg" class="" name="sevendayavg" value="1" checked>
-      <label for="sevendayavg">Rolling day average</label><br> <!--&lt = '<'' -->
-      <input type="text" id="rolling_days" class="" name="rolling_days" value="15" style="width: 20px">
-      <input type="range" min="3" max="100" value="7" style="width: var(--slider_width)" class="slider" id="rollingavgslider">
-    </div>
+    <!-- <div id = "horiz-spacer"></div> -->
 
 
 
-  <div id = "horiz-spacer"></div>
 
+  <!-- <div id = "horiz-spacer"></div> -->
+
+  <div class="small-float-box">
   <button type="button" id="uk_spanish_flu_button" >Add UK Spanish Flu (Deaths)</button>
-
+</div>
 
   <div id = "horiz-spacer"></div>
 
   <div id="jsxbox" class=""> </div>
+
+
+  <div>
+    <div class="small-float-box" style='position: absolute; left: 5%; padding-top:10px; padding-bottom:10px; width:40%;'>
+        <input type="checkbox" id="sevendayavg" class="" name="sevendayavg" value="1" checked>
+        <label for="sevendayavg">Rolling day average</label><br> 
+        <input type="text" id="rolling_days" class="" name="rolling_days" value="15" style='width:9%;'>
+        <input type="range" min="3" max="99" value="7" style="width: var(--slider_width);" class="slider" id="rollingavgslider">
+    </div>
+    <div style='position: absolute; right: 5%; padding-top:10px; padding-bottom:10px;'>
+      <button id="clear_button" type="button" >Clear Graph</button>
+    </div>
+    <div id="spacer" style="width: 100%; height: 30px; float: left;"></div> <!-- technique to horizontally space below absolute positioning-->
+  </div>
+
+  <div id = "horiz-spacer"></div>
   
+  <!--
+  <div class="fb-outer">
+    <div class="fb-middle">
+      <div id="rolling_avg_box"> 
+        <input type="checkbox" id="sevendayavg" class="" name="sevendayavg" value="1" checked>
+        <label for="sevendayavg">Rolling day average</label><br> 
+        <input type="text" id="rolling_days" class="" name="rolling_days" value="15" style="width: 20px">
+        <input type="range" min="3" max="100" value="7" style="width: var(--slider_width)" class="slider" id="rollingavgslider">
+      </div>
+    </div>
+    <div class="fb-middle">
+      <button type="button" >Clear Graph</button>
+    </div>
+  </div> -->
+
   <div id = "horiz-spacer"></div>
   <br>
   <p>1. Data sources originate from Johns Hopkins, using my Python Github project: <a href="https://github.com/idealius/transpose_covid_timeseries">transpose_covid_timeseries</a></p>
@@ -125,7 +150,6 @@
   <p>4. b. Ranking in the text area below is absolute for respective dataset (US or Global) and does not have the rolling average applied, though it is limited by the number of days selected.</p>
   <p>5. UK Spanish flu deaths data was estimated from <i>Epidemic a Survey, by Edwin Jordan</i>: <a href="https://www.desmos.com/calculator/g0g4tgjdcc">https://www.desmos.com/calculator/g0g4tgjdcc</a></p>
   <div><textarea id="console" rows="10" cols="80" wrap="soft"></textarea></div>
-  <p>11/23/2020</p>
   <p>Website Author: Leo E. Idler</p>
 <script src="js/main.js"></script>
 

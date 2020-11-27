@@ -7,7 +7,7 @@
 
 /* Variables */
 :root {
-  --slider_width: 400px;
+  --slider_width: 85%;
   --radio_size: 16px;
 }
 
@@ -36,6 +36,26 @@ input, textarea, select, button {
   margin-right:.25cm;
 }
 
+/* html, body {
+  height: 100%; width: 100%;
+} */
+.fb-outer {
+  background-color: #ff0000;
+  display: flex;
+  flex-direction: column;
+}
+.fb-middle {
+  background-color: #ffff00;
+  /* Won't work if remove either of the next 2 lines. */
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.fb-inner {
+  background-color: #00ff00;
+  flex: 1;
+}
+
 
 #jsxbox {
   width: 90%;
@@ -49,19 +69,43 @@ input, textarea, select, button {
 
 }
 
-
-.row {
-    clear:both;
-    border-radius: 5px;
-}
-
-.float-box {
-  float: left;
-  width: auto;
+#center_box {
+  /* height: 50vh;  */
+  /* clear:both; */
+  display: inline-block; 
+  margin-top: 20px;
+  margin-left: 10px;
+  border: 2px solid rgb(0, 0, 0);
+  border-radius: 5px;
+  /* line-height: normal; */
+  background-color: rgb(214, 214, 214);
+  border: rgb(214, 214, 214);
+  /* display: inline-block;  */
+  /* width: auto; */
   padding: 4px;
   border-radius: 5px;
+
 }
 
+#rolling_avg_box {
+  width: 450px;
+  /* height: 50vh;  */
+  clear:both;
+  margin-top: 20px;
+  margin-left: auto;
+  margin-right: auto;
+  border: 2px solid rgb(0, 0, 0);
+  border-radius: 5px;
+
+  line-height: normal;
+  background-color: rgb(214, 214, 214);
+  border: rgb(214, 214, 214);
+  /* display: inline-block;  */
+  /* width: auto; */
+  padding: 4px;
+  border-radius: 5px;
+
+}
 
 
 .small-row-container {
@@ -73,12 +117,22 @@ input, textarea, select, button {
   line-height: normal;
   background-color: rgb(214, 214, 214);
   border: rgb(214, 214, 214);
-  display: inline-block; 
+  display: inline-block;
+  vertical-align: top;
   width: auto;
+  margin-top: 10px;
+  margin-left: 10px;
   padding: 4px;
   border-radius: 5px;
 }
 
+.my_center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  -webkit-transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%);
+}
 
 /* BEGIN Custom Radio Boxes */
 
@@ -285,7 +339,7 @@ input, textarea, select, button {
     
 
     :root {
-      --slider_width: 200px;
+      --slider_width: 150px;
       --radio_size: 12px;
     }
 
@@ -305,7 +359,9 @@ input, textarea, select, button {
       border-radius: 3px;
     }
 
-
+    #rolling_avg_box {
+      width: 200px;
+    }
 
     
 
