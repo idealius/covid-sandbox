@@ -326,8 +326,8 @@ const COVID_SANDBOX_NS = {
     },
 
     //Code based on https://www.intmath.com/cg3/jsxgraph-axes-ticks-grids.php
-    //Dates on x-axis
-    alt_axes: function() {
+    //Months on x-axis
+    alt_x_axis: function() {
         JXG.Options.slider.ticks.majorHeight = 0;
 
         this.board = JXG.JSXGraph.initBoard('jsxbox',{
@@ -346,7 +346,7 @@ const COVID_SANDBOX_NS = {
         var xAxPt1 = this.board.create('point', [1,0], {
             needsRegularUpdate: false, visible: false});
 
-        var xaxis = this.board.create('axis', 
+        COVID_SANDBOX_NS.xaxis = this.board.create('axis', 
             [xAxPt0,xAxPt1], {
             needsRegularUpdate: false,
             strokeColor: 'grey',
@@ -360,7 +360,7 @@ const COVID_SANDBOX_NS = {
         //     visible: 'false'
         // });
 
-        xaxis.removeTicks(xaxis.defaultTicks);
+        this.xaxis.removeTicks(this.xaxis.defaultTicks);
         // xaxis_years.removeTicks(xaxis_years.defaultTicks);
 
         var run = []//[...Array(365).keys()]; //this.max_date
@@ -389,7 +389,7 @@ const COVID_SANDBOX_NS = {
         }
         
         //Months
-        var ticks = this.board.create('ticks', [xaxis, 
+        this.xaxis.ticks = this.board.create('ticks', [this.xaxis, 
             run], {
             labels: date_labels,
             majorHeight: 15, 
@@ -422,7 +422,7 @@ const COVID_SANDBOX_NS = {
         //     },
         // });
 
-        inform(ticks);
+        // inform(ticks);
         // var xTicks, yTicks, bb;
         var yTicks, bb;
         // xaxis.defaultTicks.ticksFunction = function () { return xTicks; };
@@ -568,7 +568,7 @@ const COVID_SANDBOX_NS = {
         if (this.viewport_width < 768) this.browser_context = 'mobile';
         else this.browser_context = 'desktop';
         if (this.x_axis_style == 'dates') {
-            this.alt_axes();
+            this.alt_x_axis();
         }
         else {
             this.board = JXG.JSXGraph.initBoard('jsxbox', {
@@ -619,12 +619,12 @@ const COVID_SANDBOX_NS = {
                 showZoom: false,
                 showNavigation: false
             });
-
-            this.add_axes();
-            this.board.on('update', function (){ COVID_SANDBOX_NS.update_axes();});
-    
         }
         
+        this.add_axes();
+        this.board.on('update', function (){ COVID_SANDBOX_NS.update_axes();});
+
+
         inform(this.board);
 
         // var x = [...Array(this.max_date).keys()];
@@ -637,7 +637,7 @@ const COVID_SANDBOX_NS = {
 
         // this.board.on('update', this.update_axes());
 
-
+        this.max_affected.y = 0; //reset so adding deaths doesn't show a large y-axis bounding box.
         delete temp_region;
     },
 
@@ -646,16 +646,17 @@ const COVID_SANDBOX_NS = {
         this.board.update();
 
         //AXES:
-        var bounding_box = this.board.getBoundingBox(); //returns 4 element array: left, upper, right, lower
+        var bounding_box = this.board.getBoundingBox(); //returns 4 element array: 0-left, 1-upper, 2-right, 3-lower
 
-        if (bounding_box[2] > Math.abs(bounding_box[0])) var x_offset = (bounding_box[2] / 2 );
-        else var x_offset = bounding_box[0] /2
-        var y_offset = -(bounding_box[1] -bounding_box[3]) / 7;
+        if (this.x_axis_style != "dates") {
+            if (bounding_box[2] > Math.abs(bounding_box[0])) var x_offset = (bounding_box[2] / 2 );
+            else var x_offset = bounding_box[0] /2
+            var y_offset = -(bounding_box[1] -bounding_box[3]) / 7;
 
-        this.axis.x_axis_obj.setPosition(JXG.COORDS_BY_USER, [x_offset,y_offset]);
+            this.axis.x_axis_obj.setPosition(JXG.COORDS_BY_USER, [x_offset,y_offset]);
+        }
 
-
-        x_offset = (bounding_box[2] - bounding_box[0]) / 80;
+        x_offset = -(bounding_box[2] - bounding_box[0]) / 30;
         if (bounding_box[1] > Math.abs(bounding_box[3])) y_offset = (bounding_box[1] / 10 );
         else {
             y_offset = bounding_box[3]
@@ -673,24 +674,25 @@ const COVID_SANDBOX_NS = {
     add_axes: function() {
 
         //rather than duplicate the x and y position calculations, just set them to zero and call update_axes():
-
-        this.axis.x_axis_obj = this.board.create('text', [
-            //X,Y value:
-            0, 0,
-            'Days since 1/22/20'
-            ], {
-            display: 'internal',
-            anchorX: "middle",
-            anchorY: "bottom", // <- should be top, but jsgx does opposite of what I expect.
-            cssClass: "region_labels_bright", 
-            highlightCssClass: "region_labels_bright_highlight",
-            fontSize: this.browser_context_list[this.browser_context].axis_font_size,
-            strokeColor: 'black',
-            highlight: false,
-            needsRegularUpdate:true,
-            // rotate: 90,
-            fixed: true // works
-        });
+        if (this.x_axis_style != "dates") {
+            this.axis.x_axis_obj = this.board.create('text', [
+                //X,Y value:
+                0, 0,
+                'Days since 1/22/20'
+                ], {
+                display: 'internal',
+                anchorX: "middle",
+                anchorY: "bottom", // <- should be top, but jsgx does opposite of what I expect.
+                cssClass: "region_labels_bright", 
+                highlightCssClass: "region_labels_bright_highlight",
+                fontSize: this.browser_context_list[this.browser_context].axis_font_size,
+                strokeColor: 'black',
+                highlight: false,
+                needsRegularUpdate:true,
+                // rotate: 90,
+                fixed: true // works
+            });
+        }
 
 
         this.axis.y_axis_obj = this.board.create('text', [
@@ -721,7 +723,7 @@ const COVID_SANDBOX_NS = {
             this.max_affected.x = 0;
             this.max_affected.y = 0;
         }
-
+        inform(this.board);
         for (var i = 0; i < this.graphs.length; i++) {
             this.board.removeObject(this.graphs[i].graph_arrow_obj);
             this.board.removeObject(this.graphs[i].graph_region_label_obj);
@@ -729,9 +731,15 @@ const COVID_SANDBOX_NS = {
             delete this.graphs[i];
             delete this.regions_of_interest[i];
         }
+
+        //Doesn't appear to hurt, may help browser garbage collection:
+        this.board.objectsList.forEach(element => COVID_SANDBOX_NS.board.removeObject(element));
+        
+        this.board.removeEventHandlers(); // Prevents ghost x axis events
+        // JXG.JSXGraph.freeBoard(this.board); //errors on removing ticks
         this.graphs = [];
         this.regions_of_interest = [];
-        this.board.update();
+        // this.board.update();
 
     },
 
@@ -769,7 +777,7 @@ const COVID_SANDBOX_NS = {
         var return_max_affected = new_max_affected;
 
 
-        new_max_affected.y = new_max_affected.y + new_max_affected.y / header_factor
+        // new_max_affected.y = new_max_affected.y + new_max_affected.y / header_factor
         // var data_context = this.regions_of_interest[__selected_region]._region_obj
         if (new_max_affected.y > this.max_affected.y) this.max_affected.y = new_max_affected.y;
         if (new_max_affected.x > this.max_affected.x) this.max_affected.x = new_max_affected.x
@@ -777,8 +785,7 @@ const COVID_SANDBOX_NS = {
 
         //numeric date
         this.max_date = this.max_date < _selected_region.data.length ? _selected_region.data.length : this.max_date;
-        //Set a much too large bounding box to avoid label instantiation off the board (which results in cropped size relevant to dragging):
-        this.board.setBoundingBox([-20,this.max_affected.y * 2,this.max_date * 2+20,-this.max_affected.y / 3]);
+        this.board.setBoundingBox([-20,this.max_affected.y,this.max_date * 2+20,-this.max_affected.y / 3]);
         this.board.update();
 
         var x = [...Array(_selected_region.data.length).keys()];
@@ -869,7 +876,8 @@ const COVID_SANDBOX_NS = {
             straightFirst:false, straightLast:false,
             strokeWidth:2, dash:1,
             fixed: true,
-            strokeColor: my_color
+            strokeColor: my_color,
+            strokeOpacity: .5
             });
 
 
@@ -988,6 +996,7 @@ const COVID_SANDBOX_NS = {
     //Clip by active graph data potentially put through rolling average / other transformations versus underlying actual data.
     clip_bounding_box_by_graph: function() {
         var _max_y = 0;
+        if (this.graphs.length == 0) return;
         for (var i = 0; i <this.graphs.length; i++) {
             for (var i2 = 0; i2 < this.graphs[i].graph_data_obj.dataY.length; i2++) {
                 if (this.graphs[i].graph_data_obj.dataY[i2] > _max_y) {
@@ -1125,7 +1134,6 @@ const COVID_SANDBOX_NS = {
             }
         }
 
-        inform(_region_list);
 
         this.arrange_region_labels();
         
@@ -1257,7 +1265,8 @@ const COVID_SANDBOX_NS = {
 
     //Wrapper for board update so we can adjust axes
     update: function() {
-        if (this.x_axis_style != 'dates') this.update_axes();
+        // if (this.x_axis_style != 'dates')
+        this.update_axes();
         this.board.update();
     },
 
@@ -1436,7 +1445,7 @@ const COVID_SANDBOX_NS = {
         this.update_arrow_peak.parent = this;
         this.arrange_region_labels.parent = this;
         this.duplicate_graph_check.parent = this;
-        this.alt_axes.parent = this;
+        this.alt_x_axis.parent = this;
         this.remove_top_regions.parent = this;
         this.find_my_index.parent = this;
         this.recalculate_peaks_totals.parent = this;
@@ -1663,6 +1672,7 @@ $(document).ready(function() {
     $('#clear_button').click(function() {
         "use strict";
         COVID_SANDBOX_NS.clear_all(true);
+        COVID_SANDBOX_NS.initialize_graph(); //browser context is changed in function <-
 
         $('#regions_dropdown').empty();
         COVID_SANDBOX_NS.fill_regions_dropdown("-- Select --");
@@ -1688,13 +1698,12 @@ $(document).ready(function() {
         var window_size = document.body.clientWidth;;
         inform(window_size);
         waitForFinalEvent(function(){
-            inform("Called");
             if (Math.abs(window_size - COVID_SANDBOX_NS.viewport_width) < 50) {
 
                 COVID_SANDBOX_NS.hold_resize = false;
                 return;
             }
-            inform(window_size, COVID_SANDBOX_NS.viewport_width);
+            // inform(window_size, COVID_SANDBOX_NS.viewport_width);
             if (COVID_SANDBOX_NS.hold_resize) return;
             COVID_SANDBOX_NS.hold_resize = true;
 
