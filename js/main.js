@@ -1,9 +1,11 @@
+
 //Global definitions and functions
 //--------------------------------------------------------------------------------------------
 
 //Set to true, this should work in Chrome if for instance you have an extension to disable CORS
 //*Depecrated, now uses .js files because of CORs
 const GOOGLE_DRIVE_DATA = false;
+
 
 
 try {
@@ -648,13 +650,15 @@ const COVID_SANDBOX_NS = {
         //AXES:
         var bounding_box = this.board.getBoundingBox(); //returns 4 element array: 0-left, 1-upper, 2-right, 3-lower
 
-        if (this.x_axis_style != "dates") {
-            if (bounding_box[2] > Math.abs(bounding_box[0])) var x_offset = (bounding_box[2] / 2 );
-            else var x_offset = bounding_box[0] /2
-            var y_offset = -(bounding_box[1] -bounding_box[3]) / 7;
+        if (this.x_axis_style != "dates") var factor = 3;
+        else var factor = 7;
 
-            this.axis.x_axis_obj.setPosition(JXG.COORDS_BY_USER, [x_offset,y_offset]);
-        }
+        if (bounding_box[2] > Math.abs(bounding_box[0])) var x_offset = (bounding_box[2] / 2 );
+        else var x_offset = bounding_box[0] /2
+        var y_offset = -(bounding_box[1] -bounding_box[3]) / factor;
+
+        this.axis.x_axis_obj.setPosition(JXG.COORDS_BY_USER, [x_offset,y_offset]);
+    
 
         x_offset = -(bounding_box[2] - bounding_box[0]) / 30;
         if (bounding_box[1] > Math.abs(bounding_box[3])) y_offset = (bounding_box[1] / 10 );
@@ -674,25 +678,25 @@ const COVID_SANDBOX_NS = {
     add_axes: function() {
 
         //rather than duplicate the x and y position calculations, just set them to zero and call update_axes():
-        if (this.x_axis_style != "dates") {
-            this.axis.x_axis_obj = this.board.create('text', [
-                //X,Y value:
-                0, 0,
-                'Days since 1/22/20'
-                ], {
-                display: 'internal',
-                anchorX: "middle",
-                anchorY: "bottom", // <- should be top, but jsgx does opposite of what I expect.
-                cssClass: "region_labels_bright", 
-                highlightCssClass: "region_labels_bright_highlight",
-                fontSize: this.browser_context_list[this.browser_context].axis_font_size,
-                strokeColor: 'black',
-                highlight: false,
-                needsRegularUpdate:true,
-                // rotate: 90,
-                fixed: true // works
-            });
-        }
+
+        this.axis.x_axis_obj = this.board.create('text', [
+            //X,Y value:
+            0, 0,
+            'Days since 1/22/20'
+            ], {
+            display: 'internal',
+            anchorX: "middle",
+            anchorY: "bottom", // <- should be top, but jsgx does opposite of what I expect.
+            cssClass: "region_labels_bright", 
+            highlightCssClass: "region_labels_bright_highlight",
+            fontSize: this.browser_context_list[this.browser_context].axis_font_size,
+            strokeColor: 'black',
+            highlight: false,
+            needsRegularUpdate:true,
+            // rotate: 90,
+            fixed: true // works
+        });
+ 
 
 
         this.axis.y_axis_obj = this.board.create('text', [
@@ -1010,7 +1014,6 @@ const COVID_SANDBOX_NS = {
     },
 
     remove_top_regions: function(_num_regions, _num_days){
-        inform(this.regions_of_interest);
 
         if (this.run < 1) this.run = 1;
 
@@ -1096,11 +1099,16 @@ const COVID_SANDBOX_NS = {
         else if (_num_regions < 1) _num_regions = 1;
 
         var start = this.run - _num_days;
+        var restart = true;
 
         for (var i = start; i < _data.length; i++) {
  
             _check_region = _data[i][_region_name_column];
-            if (i == 0) _prev_region = _check_region
+
+            if (restart) {
+                _prev_region = _check_region;
+                restart = false;
+            }
 
             //Sum region totals:
             if (_check_region == _prev_region) {
@@ -1113,6 +1121,7 @@ const COVID_SANDBOX_NS = {
                 _total = 0;
 
                 i += start-1; //skip ahead by days 
+                restart = true;
             }
  
             _prev_region = _check_region;
@@ -1462,6 +1471,7 @@ const COVID_SANDBOX_NS = {
 $(document).ready(function() {
     "use strict";
 
+
     // Used for things like window.resize
     var _date_timer = new Date();
     var waitForFinalEvent = (function () {
@@ -1528,9 +1538,20 @@ $(document).ready(function() {
         var _context = "covid19_deaths_US_rate"
         var _parent_data = COVID_SANDBOX_NS.affected_data[_context];
         COVID_SANDBOX_NS.last_updated_date = _parent_data.data[_parent_data.data.length-1][_parent_data.columns.date_column];
-        inform(COVID_SANDBOX_NS.last_updated_date);
+        // location.reload(true);
+        var current_date = new Date();
+        var yesterday = new Date(current_date.getTime() - 1000*60*60*24);
+        var data_date = new Date(COVID_SANDBOX_NS.last_updated_date);
+        if (yesterday.getMonth() != data_date.getMonth() || yesterday.getDate() != data_date.getDate()) {
+            var return_val = window.confirm("The data appears to be older than one day, attempt reload? *Note this may be because I have not updated the datafiles, yet.")
+            if (return_val) location.reload(true);
+        }
+            
+        
         // $('#last_updated').after(COVID_SANDBOX_NS.last_updated_date)
-        $('#last_updated').append(COVID_SANDBOX_NS.last_updated_date + '<br> Number of Days since 1/22/20: ' + COVID_SANDBOX_NS.max_date);
+        var span_start = "<span class=\"small-text-border\">";
+        var span_end = "</span>";
+        $('#last_updated').append(span_start + COVID_SANDBOX_NS.last_updated_date + span_end + ", Number of Days since 1/22/20: " + span_start + COVID_SANDBOX_NS.max_date + span_end);
     }
 
     //Event handler for region radio buttons (US/Global)
@@ -1632,8 +1653,8 @@ $(document).ready(function() {
         }
         COVID_SANDBOX_NS.set_context(prior_context.region, prior_context.affected);
 
-        COVID_SANDBOX_NS.clip_bounding_box_by_graph(); 
-        COVID_SANDBOX_NS.arrange_region_labels(-1);
+        // COVID_SANDBOX_NS.clip_bounding_box_by_graph(); 
+        // COVID_SANDBOX_NS.arrange_region_labels(-1);
         // Update regions dropdown:
         $('#regions_dropdown').empty();
         COVID_SANDBOX_NS.fill_regions_dropdown("-- Select --");

@@ -5,7 +5,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
 
-  <title>Covid Sandbox</title>
+  <title>Spicy Covid Graphs</title>
   <meta name="description" content="Covid Sandbox">
   <meta name="author" content="Leo Idler">
 
@@ -33,9 +33,10 @@
   <script type="text/javascript" charset="UTF-8" src="third party/jsxgraphsrc.js"></script>
   
 
-    <div id="last_updated">
-      Data Sources Last Updated: 
-    </div>
+
+    <img id="banner_img" src="img/Spicy_Covid_Graphs_Logo.png" alt="Spicy Covid Graphs img">
+    <div id="banner_background"></div>
+  
     <div id = "horiz-spacer"></div>
     <div id = "horiz-spacer"></div>
 
@@ -50,7 +51,6 @@
     <span class="radio_checkmark"></span>
     </label>
   </div>
-
 
   <div class="small-float-box">
     <label class="radio_container">US
@@ -68,7 +68,7 @@
     <button type="button" id="add_top_regions_button" >+</button>
     <button type="button" id="remove_top_regions_button" >-</button> top
     <input type="text" id="top_regions" class="" name="top_regions" value="8" style="width: 32px">  
-    rates across last 
+    regions by rates across last 
     <input type="text" id="top_regions_days" class="" name="top_regions_days" value="14" style="width: 32px"> 
       days
     
@@ -110,8 +110,13 @@
 
   <div id = "horiz-spacer"></div>
 
-  <div id="jsxbox" class=""> </div>
+  <div id="last_updated">
+    Data Sources Last Updated: 
+  </div>
 
+  <div id = "horiz-spacer"></div>
+
+  <div id="jsxbox"></div>
 
   <div>
     <div class="small-float-box" style='position: absolute; left: 5%; padding-top:10px; padding-bottom:10px; width:40%;'>
@@ -127,8 +132,13 @@
   </div>
 
   <div id = "horiz-spacer"></div>
-
   <div id = "horiz-spacer"></div>
+  <div id = "horiz-spacer"></div>
+  <div id = "horiz-spacer"></div>
+  <div id = "horiz-spacer"></div>
+  <div id = "horiz-spacer"></div>
+  
+  <textarea id="console" ></textarea>
   <br>
   <h3>COVID-19 Notes</h3>
   <p>1. Data sources originate from Johns Hopkins, using my Python Github project: <a href="https://github.com/idealius/transpose_covid_timeseries">transpose_covid_timeseries</a></p>
@@ -139,8 +149,15 @@
   <p>1. Using the "Rank Labels" button in the graph does not have rolling average applied unless "Peak" is selected.</p>
   <p>2. Ranking in the text area below is absolute for respective dataset (US or Global) and does not have the rolling average applied, though it is limited by the number of days selected.</p>
   <p>3. UK Spanish flu deaths data was estimated from <i>Epidemic a Survey, by Edwin Jordan</i>: <a href="https://www.desmos.com/calculator/g0g4tgjdcc">https://www.desmos.com/calculator/g0g4tgjdcc</a></p>
-  <div><textarea id="console" rows="10" cols="80" wrap="soft"></textarea></div>
-  <p>Website Author: Leo E. Idler</p>
+
+  <div id="footer_background"></div>
+  <div id="footer_content"><br><br><br><br>Website Author: Leo E. Idler</div>
+
+
+  <div id = "horiz-spacer"></div>
+
+
+
 <script src="js/main.js"></script>
 
 </body>

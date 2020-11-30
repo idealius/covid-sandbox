@@ -20,6 +20,41 @@ p {
   font-size: 12px;
 }
 
+#banner_img {
+  float: left;
+  position: absolute;
+  top: 0;
+  left: 0;
+  /* content:url("img/Spicy_Covid_Graphs_Logo.png"); */
+}
+
+#banner_background {
+  width: 100%;
+  height: 182px;
+  float: left;
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+  background: rgb(243,151,11);
+  background: linear-gradient( rgba(243,151,11,1) 0%, rgba(255,255,255,1) 100%);
+}
+
+#footer_content {
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  font-size: 12px;
+  position: absolute;
+  text-align: right;
+}
+
+#footer_background {
+  width: 100%;
+  height: 91px;
+  float: left;
+  border-bottom-left-radius: 10px;
+  border-bottom-right-radius: 10px;
+  background: rgb(243,151,11);
+  background: linear-gradient( rgba(255,255,255,1) 0%, rgba(243,151,11,1) 100%);
+}
+
 input, textarea, select, button {
   font-size: 16px; 
   font-family: Verdana, Geneva, Tahoma, sans-serif;
@@ -126,6 +161,19 @@ input, textarea, select, button {
   border-radius: 5px;
 }
 
+.small-text-border {
+  /* line-height: normal; */
+  background-color: rgb(214, 214, 214);
+  border: rgb(214, 214, 214);
+  /* display: inline-block; */
+  vertical-align: top;
+  /* width: auto; */
+  /* margin-top: 1px;
+  margin-left: 1px;
+  padding: 1px; */
+  border-radius: 5px;
+}
+
 .my_center {
   position: absolute;
   left: 50%;
@@ -215,9 +263,16 @@ input, textarea, select, button {
 
 
 #console {
-    clear:both; /*to float below other two divs*/
-    width: 95%;
-    height: 300px;
+    clear:both;
+    display:block;
+    width: 90%;
+    height: 300px; 
+
+    margin-top: 20px;
+    margin-left: auto;
+    margin-right: auto; /* center */
+    border: 2px solid rgb(0, 0, 0);
+    border-radius: 5px;
     /* border: 2px solid rgb(90, 90, 90);
     border-radius: 5px; */
 }
@@ -343,18 +398,45 @@ input, textarea, select, button {
       --radio_size: 12px;
     }
 
+    #banner_img {
+      float: left;
+      position: absolute;
+      top: 0;
+      left: 0;
+      content:url("img/Spicy_Covid_Graphs_Logo_Small.png");
+    }
+
+    
+    #banner_background {
+      height: 91px;
+      /* border-top-left-radius: 6px;
+      border-top-right-radius: 6px; */
+    }
+
+    #footer_content {
+      font-family: Verdana, Geneva, Tahoma, sans-serif;
+      font-size: 12px;
+      position: absolute;
+      text-align: right;
+    }
+
     input, textarea, select, button {
       font-size: 14px; 
       font-family: Verdana, Geneva, Tahoma, sans-serif;
     }
 
     #float-box, #console, #jsx-box {
-      width: 95%;
+      width: 90%;
       margin-top: 10px;
     }
 
     #jsxbox {
       height: 35vh;
+      border: 1px solid rgb(0, 0, 0);
+      border-radius: 3px;
+    }
+
+    #console {
       border: 1px solid rgb(0, 0, 0);
       border-radius: 3px;
     }
