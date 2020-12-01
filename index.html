@@ -9,6 +9,10 @@
   <meta name="description" content="Covid Sandbox">
   <meta name="author" content="Leo Idler">
 
+  <link rel="icon" 
+      type="image/png" 
+      href="img/favicons/spicy.ico" />
+
   <link rel="stylesheet" type="text/css" href="css/styles.css">
   <!-- <link rel="stylesheet" type="text/css" href="css/styles.css?v=1.0"> -->
   <!-- <link rel="stylesheet" type="text/css" href="third party/jsxgraph.css" /> -->
@@ -65,8 +69,8 @@
 
   <div id = "horiz-spacer"></div>
   <div class="small-float-box">
-    <button type="button" id="add_top_regions_button" >+</button>
-    <button type="button" id="remove_top_regions_button" >-</button> top
+    <button type="button" id="add_top_regions_button" class="top_regions_buttons">+</button>
+    <button type="button" id="remove_top_regions_button"   class="top_regions_buttons">-</button> top
     <input type="text" id="top_regions" class="" name="top_regions" value="8" style="width: 32px">  
     regions by rates across last 
     <input type="text" id="top_regions_days" class="" name="top_regions_days" value="14" style="width: 32px"> 
@@ -121,37 +125,38 @@
   <div>
     <div class="small-float-box" style='position: absolute; left: 5%; padding-top:10px; padding-bottom:10px; width:40%;'>
         <input type="checkbox" id="sevendayavg" class="" name="sevendayavg" value="1" checked>
-        <label for="sevendayavg">Rolling day average</label><br> 
-        <input type="text" id="rolling_days" class="" name="rolling_days" value="15" style='width:9%;'>
+        <label for="sevendayavg">Rolling day avg</label><br> 
+        <input type="text" id="rolling_days"  name="rolling_days" value="15">
         <input type="range" min="3" max="99" value="7" style="width: var(--slider_width);" class="slider" id="rollingavgslider">
     </div>
-    <div style='position: absolute; right: 5%; padding-top:10px; padding-bottom:10px;'>
-      <button id="clear_button" type="button" >Clear Graph</button>
+    <div style='position: absolute; right: 5%;'>
+      <div class='small-float-box'><button id="clear_button" type="button" >Clear Graph</button></div>
     </div>
-    <div id="spacer" style="width: 100%; height: 30px; float: left;"></div> <!-- technique to horizontally space below absolute positioning-->
+    <div id="spacer" style="width: 100%; height: 110px; float: left;"></div> <!-- technique to horizontally space below absolute positioning-->
   </div>
 
+  <!-- <div id = "horiz-spacer"></div>
   <div id = "horiz-spacer"></div>
   <div id = "horiz-spacer"></div>
   <div id = "horiz-spacer"></div>
   <div id = "horiz-spacer"></div>
-  <div id = "horiz-spacer"></div>
-  <div id = "horiz-spacer"></div>
-  
+   -->
   <textarea id="console" ></textarea>
   <br>
   <h3>COVID-19 Notes</h3>
-  <p>1. Data sources originate from Johns Hopkins, using my Python Github project: <a href="https://github.com/idealius/transpose_covid_timeseries">transpose_covid_timeseries</a></p>
-  <p>2. Many region's reporting agencies warn the most recent days are subject to change. (Guess: the last 3-17 days on average.) Typically, they fill in higher as time passes.</p>
-  <p>3. The regions with high peaks for cases and deaths early in the pandemic are not necessarily appropriate to compare to regions now because the overall testing was most likely lower, and the deaths were most likely higher, then.</p>
-  <p>4. The congruent seasonality of COVID-19 and other transmissable diseases isn't well understood.</p>
+  
+  <p>1. Many region's reporting agencies warn the most recent days are subject to change. (Guess: the last 3-17 days on average.) Typically, they fill in higher as time passes.</p>
+  <p>2. The regions with high peaks for cases and deaths early in the pandemic are not necessarily appropriate to compare to regions now because the overall testing was most likely lower, and the deaths were most likely higher, then.</p>
+  <p>3. The congruent seasonality of COVID-19 and other transmissable diseases isn't well understood.</p>
   <h3>Graph Notes</h3>
+
   <p>1. Using the "Rank Labels" button in the graph does not have rolling average applied unless "Peak" is selected.</p>
-  <p>2. Ranking in the text area below is absolute for respective dataset (US or Global) and does not have the rolling average applied, though it is limited by the number of days selected.</p>
-  <p>3. UK Spanish flu deaths data was estimated from <i>Epidemic a Survey, by Edwin Jordan</i>: <a href="https://www.desmos.com/calculator/g0g4tgjdcc">https://www.desmos.com/calculator/g0g4tgjdcc</a></p>
+  <p>2. Ranking in the text area above is absolute for respective dataset (US or Global) and does not have the rolling average applied, though it is limited by the number of days selected.</p>
+  <p>3. Data sources originate from Johns Hopkins, using my Python Github project: <a href="https://github.com/idealius/transpose_covid_timeseries">transpose_covid_timeseries</a></p>
+  <p>4. UK Spanish flu deaths data was estimated from <i>Epidemic a Survey, by Edwin Jordan</i>: <a href="https://www.desmos.com/calculator/g0g4tgjdcc">https://www.desmos.com/calculator/g0g4tgjdcc</a></p>
 
   <div id="footer_background"></div>
-  <div id="footer_content"><br><br><br><br>Website Author: Leo E. Idler</div>
+  <div id="footer_content"><br><br>Website Authors: Leo E. Idler & Jennifer L. Sullivan, Powered by:<a href="https://jquery.com/">JQuery</a> and <a href="https://jsxgraph.uni-bayreuth.de/wp/index.html">JSXGraph</a></div>
 
 
   <div id = "horiz-spacer"></div>
