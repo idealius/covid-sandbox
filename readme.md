@@ -68,6 +68,8 @@ Graphs are not displayed well on mobile platforms in general.
 
 (https://github.com/idealius/transpose_covid_timeseries)
 
+#### This project uses JQuery (https://jquery.com/) and JSXGraph (https://jsxgraph.uni-bayreuth.de/wp/index.html) extensively 
+
 #### Country Data
 
 Johns Hopkins Death and Confirmed Cases Data:
