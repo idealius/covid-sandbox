@@ -960,7 +960,7 @@ const COVID_SANDBOX_NS = {
         //Translate / arrange on graph canvas
         var bounds = this.board.getBoundingBox();
         var left = bounds[0] + 100;
-        if (bounds[2] > highest_affected.x + highest_affected.x * .63) {//If we're scrolled far enough right lets 'center' the far right
+        if (bounds[2] > highest_affected.x + highest_affected.x * .63) {//If we're scrolled far enough right lets start at the far right
             left = highest_affected.x + 100;
         }
         else if (bounds[2] > highest_affected.x + highest_affected.x * .35) { //If we're scrolled far enough right lets 'center' around peak
@@ -1155,7 +1155,8 @@ const COVID_SANDBOX_NS = {
         //Log full list to textarea
         var context_str = new this.header_obj(_context);
         // inform(_full_list, _region_list);
-        var str = "List of region totals as % of respective state/country sorted by (" + context_str.affected_column + ") across last " + _num_days + " days:\n\n";
+
+        var str = "Across last " + _num_days + " days:\n" + "List of region totals as % of respective state/country sorted by (" + context_str.affected_column + ")\n\n";
 
         for (var i = 0; i < _full_list.length; i++) {
             str = str + (i + 1) + '. ' + _full_list[i].region + ' ' + Number.parseFloat(_full_list[i].total).toPrecision(5) + '%\n';
