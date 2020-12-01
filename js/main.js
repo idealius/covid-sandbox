@@ -352,6 +352,7 @@ const COVID_SANDBOX_NS = {
             [xAxPt0,xAxPt1], {
             needsRegularUpdate: false,
             strokeColor: 'grey',
+            fontsize:this.browser_context_list[this.browser_context].axis_font_size
             });
 
         var vert_offset = -.04;
@@ -405,6 +406,7 @@ const COVID_SANDBOX_NS = {
                 offset:[0,-20],
                 fontsize:this.browser_context_list[this.browser_context].axis_font_size,
                 anchorX: 'left', anchorY: 'bottom',
+                fontsize:this.browser_context_list[this.browser_context].axis_font_size
             },
             // precision:5
           });
@@ -447,7 +449,8 @@ const COVID_SANDBOX_NS = {
             needsRegularUpdate: false, 
             ticks:{
                 scaleSymbol: '%',
-                label:{offset:[10,0],precision:8}
+                label:{offset:[10,0],precision:8,
+                    fontsize:this.browser_context_list[this.browser_context].axis_font_size}
             } 
           }
         );
@@ -957,7 +960,10 @@ const COVID_SANDBOX_NS = {
         //Translate / arrange on graph canvas
         var bounds = this.board.getBoundingBox();
         var left = bounds[0] + 100;
-        if (bounds[2] > highest_affected.x + highest_affected.x * .35) { //If we're scrolled far enough right lets 'center' around peak
+        if (bounds[2] > highest_affected.x + highest_affected.x * .63) {//If we're scrolled far enough right lets 'center' the far right
+            left = highest_affected.x + 100;
+        }
+        else if (bounds[2] > highest_affected.x + highest_affected.x * .35) { //If we're scrolled far enough right lets 'center' around peak
             left = highest_affected.x - 100;
         }
         else if (left < 0) left = 100;  //Otherwise let's align to the right of the y axis
@@ -1717,7 +1723,7 @@ $(document).ready(function() {
     $( window ).resize(function() {
         // var window_size = $(window).innerWidth;
         var window_size = document.body.clientWidth;;
-        inform(window_size);
+        // inform(window_size);
         waitForFinalEvent(function(){
             if (Math.abs(window_size - COVID_SANDBOX_NS.viewport_width) < 50) {
 

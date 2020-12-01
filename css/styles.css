@@ -28,12 +28,18 @@ p {
   /* content:url("img/Spicy_Covid_Graphs_Logo.png"); */
 }
 
+.top_regions_buttons {
+  width: 24px;
+  height:24px;
+}
+
+
 #banner_background {
   width: 100%;
   height: 182px;
   float: left;
-  border-top-left-radius: 10px;
-  border-top-right-radius: 10px;
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
   background: rgb(243,151,11);
   background: linear-gradient( rgba(243,151,11,1) 0%, rgba(255,255,255,1) 100%);
 }
@@ -42,7 +48,7 @@ p {
   font-family: Verdana, Geneva, Tahoma, sans-serif;
   font-size: 12px;
   position: absolute;
-  text-align: right;
+  left: 20px;
 }
 
 #footer_background {
@@ -71,26 +77,6 @@ input, textarea, select, button {
   margin-right:.25cm;
 }
 
-/* html, body {
-  height: 100%; width: 100%;
-} */
-.fb-outer {
-  background-color: #ff0000;
-  display: flex;
-  flex-direction: column;
-}
-.fb-middle {
-  background-color: #ffff00;
-  /* Won't work if remove either of the next 2 lines. */
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-.fb-inner {
-  background-color: #00ff00;
-  flex: 1;
-}
-
 
 #jsxbox {
   width: 90%;
@@ -104,23 +90,11 @@ input, textarea, select, button {
 
 }
 
-#center_box {
-  /* height: 50vh;  */
-  /* clear:both; */
-  display: inline-block; 
-  margin-top: 20px;
-  margin-left: 10px;
-  border: 2px solid rgb(0, 0, 0);
-  border-radius: 5px;
-  /* line-height: normal; */
-  background-color: rgb(214, 214, 214);
-  border: rgb(214, 214, 214);
-  /* display: inline-block;  */
-  /* width: auto; */
-  padding: 4px;
-  border-radius: 5px;
 
+#rolling_days {
+  width:9%;
 }
+
 
 #rolling_avg_box {
   width: 450px;
@@ -143,15 +117,10 @@ input, textarea, select, button {
 }
 
 
-.small-row-container {
-  clear:both;
-  /* margin: auto; */
-}
-
 .small-float-box {
   line-height: normal;
-  background-color: rgb(214, 214, 214);
-  border: rgb(214, 214, 214);
+  background-color: rgb(223, 223, 223);
+  border: rgb(223, 223, 223);
   display: inline-block;
   vertical-align: top;
   width: auto;
@@ -162,15 +131,9 @@ input, textarea, select, button {
 }
 
 .small-text-border {
-  /* line-height: normal; */
-  background-color: rgb(214, 214, 214);
-  border: rgb(214, 214, 214);
-  /* display: inline-block; */
+  background-color: rgb(250, 230, 201);
+  border:  rgb(250, 230, 201);
   vertical-align: top;
-  /* width: auto; */
-  /* margin-top: 1px;
-  margin-left: 1px;
-  padding: 1px; */
   border-radius: 5px;
 }
 
@@ -285,7 +248,7 @@ input, textarea, select, button {
   width: 100%;
   height: 10px;
   border-radius: 5px;  
-  background: #7a7a7a;
+  background: #797979;
   outline: none;
   opacity: 0.7;
   -webkit-transition: .2s;
@@ -394,7 +357,7 @@ input, textarea, select, button {
     
 
     :root {
-      --slider_width: 150px;
+      --slider_width: 90px;
       --radio_size: 12px;
     }
 
@@ -445,7 +408,57 @@ input, textarea, select, button {
       width: 200px;
     }
 
+    #rolling_days {
+      width:24px;
+    }
+
+    .top_regions_buttons {
+      width: fit-content;
+      height: fit-content;
+    }
+
+    .small-float-box {
+      line-height: normal;
+      background-color: rgb(247, 232, 216);
+      border: rgb(247, 232, 216);
+      display: inline-block;
+      vertical-align: top;
+      width: auto;
+      margin-top: 10px;
+      margin-left: 10px;
+      padding: 4px;
+      border-radius: 12px;
+    }
     
+    .slider {
+      background: #945a0e;
+    }
+    
+    button {
+      background-color: #ffffff;
+      border: none;
+      color: f5c646;
+      padding: 17px;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 16px;
+      margin: 4px 2px;
+      border-radius: 12px;
+    }
+
+    .slider::-webkit-slider-thumb {
+      background: #dba149;
+    }
+    
+    .slider::-moz-range-thumb {
+      background: #dba149;
+    }
+    
+    .radio_checkmark {
+      background-color: rgb(255, 255, 255);
+ 
+    }
 
     
     .region_labels_dark, .region_labels_dark_highlight {

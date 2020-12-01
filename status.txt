@@ -1,0 +1,23 @@
+DID
+renamed site to spicy covid graphs
+graph notes content refer to text area above (instead of below)
+powered by footer for JQuery and JSXGraph
+the reference to Johns Hopkins is changed from the covid information section to the graph section
+
+
+Todo!
+Update doesn't work for data
+
+TODO
+find way to change layers
+add remove region by context functionality
+add dual axis
+test mobile more
+add rank by highest in x number of days
+add clear text button
+figure out why rotating the page on mobile screws everything up
+add text box log for remove_top regions
+say why some colors are outlined in mobile
+mobile zoom find a way to stop vert and horiz two finger zooming and use one zoom style (including diagonal
+consider refactoring alt_axes to not include sub-functions for memory savings
+consider adding checkbox to switch x-axis styles
