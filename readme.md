@@ -3,6 +3,11 @@
 Link: (http://covid19graphs.42web.io/)
 
 
+### Purpose:
+When doing personal risk assessment of COVID-19 in different contexts like local and global regions, other dashboards did not make it easy see regions overlayed and per population total. To rectify this would involve a lot of copy/pasting and data transposing in spreadsheets like Excel. The Python project listed in sources below is used to transpose Johns Hopkins data and convert it to rates. This makes the data easy to use in Tableau, Excel, etc.
+
+This project then takes that data outputted from the Python project (which also converts the data to .js files) and allows one to quickly overlay different regions - by user selection - or by ranking across N number of days for cases and deaths.
+
 ### Features:
 Always shows data as percentage of population, so comparisons between regions is easier.
 
@@ -60,7 +65,9 @@ Consider refactoring alt_axes to not include sub-functions for better memory man
 Consider adding checkbox to switch x-axis styles
 
 ### Limitations
-Graphs are not displayed well on mobile platforms in general.
+No hospitalization data.
+
+Graphs are not displayed well on mobile platforms in general because the screen width & height of phones.
 
 ### Sources & Notes
 
