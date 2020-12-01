@@ -1,14 +1,13 @@
 DID
-renamed site to spicy covid graphs
-graph notes content refer to text area above (instead of below)
-powered by footer for JQuery and JSXGraph
-the reference to Johns Hopkins is changed from the covid information section to the graph section
+added rate.js?version=(date) functionality done on my end using powershell
+reload confirmation now just an alert about old data with no reload functionality
 
 
 Todo!
 Update doesn't work for data
 
 TODO
+zoom out show letters for months instead of abbreviations
 find way to change layers
 add remove region by context functionality
 add dual axis
@@ -17,7 +16,16 @@ add rank by highest in x number of days
 add clear text button
 figure out why rotating the page on mobile screws everything up
 add text box log for remove_top regions
+add clear button for text log
 say why some colors are outlined in mobile
 mobile zoom find a way to stop vert and horiz two finger zooming and use one zoom style (including diagonal
-consider refactoring alt_axes to not include sub-functions for memory savings
+consider refactoring alt_axes to not include sub-functions for better memory management
 consider adding checkbox to switch x-axis styles
+
+Main Features:
+Always shows data as percentage of population, so comparisons between regions is easier.
+Rolling average slider.
+Always fills curves transparently -- mostly for aesthetic reasons, but also because it is sometimes easier to visualize differences between regions.
+Totals printed to text area for ranking comparison across N number of days.
+Ranking in the graph by total or peak.
+Ability to add N top regions in a dataset by last N number of days. For seeing say the bottom 10 regions, one can add the top N regions, then remove the (N - 10) regions.

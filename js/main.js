@@ -1549,8 +1549,9 @@ $(document).ready(function() {
         var yesterday = new Date(current_date.getTime() - 1000*60*60*24);
         var data_date = new Date(COVID_SANDBOX_NS.last_updated_date);
         if (yesterday.getMonth() != data_date.getMonth() || yesterday.getDate() != data_date.getDate()) {
-            var return_val = window.confirm("The data appears to be older than one day, attempt reload? *Note this may be because I have not updated the datafiles, yet.")
-            if (return_val) location.reload(true);
+            alert("The data appears to be older than yesterday, perhaps server data has not been updated, yet!");
+            // var return_val = window.confirm("The data appears to be older than one day, attempt reload? *Note this may be because I have not updated the datafiles, yet.")
+            // if (return_val) location.reload(true);
         }
             
         
