@@ -386,7 +386,7 @@ const COVID_SANDBOX_NS = {
                 years_run.push(i);
                 // var date_str = (new_date.getMonth() + 1) + '/' + new_date.getDate() //+ '/' + year;  //have to add one since months start at 0
                 var date_str = month_names[new_date.getMonth()];  // + year;
-                run.push(i);
+                run.push(i-1);
                 date_labels.push(date_str);
             }
         }
@@ -1393,7 +1393,8 @@ const COVID_SANDBOX_NS = {
         _data = _dataset;
         _total = 0;
 
-        for (var i = 0; i < _data.data.length; i++) {
+        // for (var i = 0; i < _data.data.length; i++) {
+        for (var i = 0; i < this.run; i++) {
 
             if (_data.data[i][column_name] > result_point.y){
                 result_point.x = i;

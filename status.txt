@@ -1,10 +1,18 @@
 DID
-added rate.js?version=(date) functionality done on my end using powershell
-reload confirmation now just an alert about old data with no reload functionality
+Added About link to github project in footer
+months x axis ticks now properly align with days data
 
 
 Todo!
-Update doesn't work for data
+Work on dynamic arranging of labels by window width
+Maybe: change text area to contenteditarea so we can highlight number of days
+add dynamic "Working with N regions" text
+add "working..." animation
+reskin dropdowns and checkboxes for mobile
+
+simple:
+when graph is empty reset max_affected
+
 
 TODO
 zoom out show letters for months instead of abbreviations
