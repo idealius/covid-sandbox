@@ -2,6 +2,8 @@
 //Global definitions and functions
 //--------------------------------------------------------------------------------------------
 
+// const JXG = require("../third party/jsxgraphsrc");
+
 //Set to true, this should work in Chrome if for instance you have an extension to disable CORS
 //*Depecrated, now uses .js files because of CORs
 const GOOGLE_DRIVE_DATA = false;
@@ -45,6 +47,13 @@ const COVID_SANDBOX_NS = {
 
     ranking: "Total",
     days: 15,
+
+    months_abbreviated: false,
+    months_run: 0, // doesnt need to fill up namespace
+    date_labels: [], // same
+    abbv_date_labels: [], // same
+    xaxis: {},
+    abbv_xaxis: {},
 
     //For holding updating graph regions on window.resize()
     hold_resize: false,
@@ -352,17 +361,26 @@ const COVID_SANDBOX_NS = {
          } 
         );
   
-        var xAxPt0 = this.board.create('point', [0,0], {
-            needsRegularUpdate: false, visible: false});
-        var xAxPt1 = this.board.create('point', [1,0], {
-            needsRegularUpdate: false, visible: false});
+        // var xAxPt0 = this.board.create('point', [0,0], {
+        //     needsRegularUpdate: false, visible: false});
+        // var xAxPt1 = this.board.create('point', [1,0], {
+        //     needsRegularUpdate: false, visible: false});
 
         COVID_SANDBOX_NS.xaxis = this.board.create('axis', 
-            [xAxPt0,xAxPt1], {
+            [[0,0],[1,0]], {
             needsRegularUpdate: false,
             strokeColor: 'grey',
             fontsize:this.browser_context_list[this.browser_context].axis_font_size
             });
+            // inform(this.xaxis);
+
+        COVID_SANDBOX_NS.abbv_xaxis = this.board.create('axis', 
+            [[0,0],[1,0]], {
+            needsRegularUpdate: false,
+            strokeColor: 'grey',
+            fontsize:this.browser_context_list[this.browser_context].axis_font_size
+        });
+
 
         var vert_offset = -.04;
         // var xaxis_years = this.board.create('axis', [[0,vert_offset],[1,vert_offset]],
@@ -373,10 +391,11 @@ const COVID_SANDBOX_NS = {
         // });
 
         this.xaxis.removeTicks(this.xaxis.defaultTicks);
+        this.abbv_xaxis.removeTicks(this.abbv_xaxis.defaultTicks);
         // xaxis_years.removeTicks(xaxis_years.defaultTicks);
 
-        var run = []//[...Array(365).keys()]; //this.max_date
-        var date_labels = [];
+        this.months_run = []//[...Array(365).keys()]; //this.max_date
+        ;
         var start_date = new Date(2020, 0, 21); //months starts at 0 instead of 1, so this is 1/21/2020
         var date_conversion = 1000*60*60*24;
         var years_run = [];
@@ -384,7 +403,7 @@ const COVID_SANDBOX_NS = {
         var last_year = 0;
         const month_names = ["Jan", "Feb", "Mar", "Apr", "May", "June",
         "July", "Aug", "Sept", "Oct", "Nov", "Dec"
-      ];
+        ];
         // for (var i = 0; i < this.max_affected.x+60; i++) {
         for (var i = 0; i < 365*3; i++) {
             var new_date = new Date(start_date.getTime() + i * date_conversion);
@@ -395,21 +414,24 @@ const COVID_SANDBOX_NS = {
                 years_run.push(i);
                 // var date_str = (new_date.getMonth() + 1) + '/' + new_date.getDate() //+ '/' + year;  //have to add one since months start at 0
                 var date_str = month_names[new_date.getMonth()];  // + year;
-                run.push(i-1);
-                date_labels.push(date_str);
+                var abb_date_str = date_str.slice(0,1);
+                this.months_run.push(i-1);
+                this.date_labels.push(date_str);
+                this.abbv_date_labels.push(abb_date_str);
             }
         }
         
         //Months
         this.xaxis.ticks = this.board.create('ticks', [this.xaxis, 
-            run], {
-            labels: date_labels,
-            majorHeight: 15, 
+            this.months_run], {
+            labels: this.date_labels,
+            // majorHeight: 15, 
             drawLabels: true, 
             needsRegularUpdate: false,
 
-            visible: 'false',
+            visible: false,
             label: {
+                visible: true,
                 cssClass:"region_labels_bright",
                 highlight: false,
                 offset:[0,-20],
@@ -419,7 +441,26 @@ const COVID_SANDBOX_NS = {
             },
             // precision:5
           });
-
+          
+        this.abbv_xaxis.ticks = this.board.create('ticks', [this.abbv_xaxis, 
+            this.months_run], {
+            labels: this.abbv_date_labels,
+            // majorHeight: 15, 
+            drawLabels: false, 
+            needsRegularUpdate: false,
+            visible: false,
+            label: {
+                visible: true,
+                cssClass:"region_labels_bright",
+                highlight: false,
+                offset:[0,-20],
+                fontsize:this.browser_context_list[this.browser_context].axis_font_size,
+                anchorX: 'left', anchorY: 'bottom',
+                fontsize:this.browser_context_list[this.browser_context].axis_font_size
+            },
+            // precision:5
+          });
+          inform(this.abbv_xaxis);
         // var ticks_years = this.board.create('ticks', [xaxis_years, 
         // years_run], {
         // labels: years_array,
@@ -663,7 +704,31 @@ const COVID_SANDBOX_NS = {
         var bounding_box = this.board.getBoundingBox(); //returns 4 element array: 0-left, 1-upper, 2-right, 3-lower
 
         if (this.x_axis_style != "dates") var factor = 3;
-        else var factor = 7;
+        else {
+
+            var factor = 7;
+            var threshold = 29 * 30 // how many columns of month we should go over before we abbreviate
+            if (bounding_box[2] - bounding_box[0] > threshold && !this.months_abbreviated) {
+                // this.xaxis.ticks.setAttribute({label:{visible: false}});
+                // this.abbv_xaxis.ticks.setAttribute({label:{visible: true}});
+                this.xaxis.ticks.setAttribute({drawLabels: false});
+                this.abbv_xaxis.ticks.setAttribute({drawLabels: true});
+                
+                this.months_abbreviated = true;
+                // this.board.update();
+            }
+            else if (bounding_box[2] - bounding_box[0] <= threshold && this.months_abbreviated) {
+                // this.xaxis.ticks.setAttribute({label:{visible: true}});
+                // this.abbv_xaxis.ticks.setAttribute({label:{visible: false}});
+                this.xaxis.ticks.setAttribute({drawLabels: true});
+                this.abbv_xaxis.ticks.setAttribute({drawLabels: false});
+
+                this.months_abbreviated = false;
+                // this.board.update();
+            }
+            // inform(this.xaxis.ticks);
+            
+        }
 
         if (bounding_box[2] > Math.abs(bounding_box[0])) var x_offset = (bounding_box[2] / 2 );
         else var x_offset = bounding_box[0] /2
@@ -980,7 +1045,7 @@ const COVID_SANDBOX_NS = {
             
             _graph_max_affected[i].index = i;
         }
-        inform(_graph_max_affected);
+        // inform(_graph_max_affected);
         if (this.ranking == "Total") {
             _graph_max_affected.sort(function(a, b) {return b.total - a.total;}); //sort by descending
         }
@@ -1264,7 +1329,7 @@ const COVID_SANDBOX_NS = {
         var divider_str = "\n*****************************\n\n*****************************\n";
         $('#console').val(str + divider_str + $('#console').val());
 
-        inform(this.graphs);
+        // inform(this.graphs);
         return _region_list;
     },
 
