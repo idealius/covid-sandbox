@@ -96,11 +96,12 @@ const COVID_SANDBOX_NS = {
     // Just some colors
     custom_colors: {
         0:{value:'#3348FF', gamma: 'dark'}, //blue
-        1:{value:'#59FF33', gamma: 'bright'},//green
-        2:{value:'#9133FF', gamma: 'dark'}, //purple
-        3:{value:'#FFB433', gamma: 'dark'},  //brown
+        1:{value:'#9133FF', gamma: 'dark'}, //purple
+        2:{value:'#FFB433', gamma: 'dark'},  //brown
+        3:{value:'#E433FF', gamma: 'dark'},  //magenta
         4:{value:'#33FFF4', gamma: 'bright'},//cyan
-        5:{value:'#E433FF', gamma: 'dark'}  //magenta
+        5:{value:'#59FF33', gamma: 'bright'}//green
+
     },
 
     //Object for constructing the column name strings for the different datasets.
@@ -947,14 +948,18 @@ const COVID_SANDBOX_NS = {
                 highest_affected = _temp_max_affected.total > highest_affected.total ? _temp_max_affected : highest_affected;
                 _graph_max_affected[i].total = _temp_max_affected.total;
             }
-            else highest_affected = _graph_max_affected[i].y > highest_affected.y ? _graph_max_affected[i] : highest_affected;
+            else if (this.ranking == "Peak") highest_affected = _graph_max_affected[i].y > highest_affected.y ? _graph_max_affected[i] : highest_affected;
+            else {
+                _graph_max_affected[i].linreg = this.do_linear_regression_graph(i, this.days);
+            }
             
             _graph_max_affected[i].index = i;
         }
         if (this.ranking == "Total") {
             _graph_max_affected.sort(function(a, b) {return b.total - a.total;}); //sort by descending
         }
-        else _graph_max_affected.sort(function(a, b) {return b.y - a.y;}); //sort by descending
+        else if (this.ranking == "Peak") _graph_max_affected.sort(function(a, b) {return b.y - a.y;}); //sort by descending
+        else if (this.ranking == "Slope") _graph_max_affected.sort(function(a, b) {return b.linreg.slope - a.linreg.slope;});
         // inform(_graph_max_affected);
 
         //Translate / arrange on graph canvas
@@ -1019,7 +1024,7 @@ const COVID_SANDBOX_NS = {
         this.board.setBoundingBox([-20,_max_y + _max_y / 8, this.max_date+20,-_max_y / 3]);
     },
 
-    remove_top_regions: function(_num_regions, _num_days){
+    remove_top_regions: function(_num_regions, _num_days, _style){
 
         if (this.run < 1) this.run = 1;
 
@@ -1032,15 +1037,22 @@ const COVID_SANDBOX_NS = {
         for (var i = 0; i < this.regions_of_interest.length; i++) {
             var _total = 0;
             // var _context = this.interpret_context(this.regions_of_interest[i].context);
-            var _context = this.regions_of_interest[i].columns.affected_column;
-            for (var days_counter = this.run - _num_days; days_counter < this.run; days_counter++)
-            {
-                _total += this.regions_of_interest[i].data[days_counter][_context];
+            if (_style == "Fastest Rising") {
+                var _linreg = do_linear_regression_graph(i, this.days);
+                _graphs.list.push({linreg: _linreg, index: i});
             }
-            _graphs_list.push({total: _total, index: i});
+            else {
+                var _context = this.regions_of_interest[i].columns.affected_column;
+                for (var days_counter = this.run - _num_days; days_counter < this.run; days_counter++)
+                {
+                    _total += this.regions_of_interest[i].data[days_counter][_context];
+                }
+                _graphs_list.push({total: _total, index: i});
+            }
         }
 
-        _graphs_list.sort(function(a, b) {return b.total - a.total;}); //sort by descending total
+        if (_style == "Fastest Rising") _graphs_list.sort(function(a, b) {return b.linreg.slope - a.linreg.slope;});
+        else _graphs_list.sort(function(a, b) {return b.total - a.total;}); //sort by descending total
         _graphs_list.splice(_num_regions, _graphs_list.length - _num_regions); //remove bottom regions from checklist
         _graphs_list.sort(function(a, b) {return b.index - a.index;}); //sort by descending index to prevent reindex problems with splice below
 
@@ -1086,7 +1098,36 @@ const COVID_SANDBOX_NS = {
         }
     },
 
-    add_top_regions: function(_num_regions, _num_days){
+    do_linear_regression_graph: function(index, _num_days) {
+
+        var _lin_reg_sumx = 0;
+        var _lin_reg_sumx2 = 0;
+        var _lin_reg_sumy = 0;
+        var _lin_reg_sumxy = 0;
+        var ret_value = 0;
+        var run_length = _num_days;
+
+        var _start = this.graphs[index].graph_data_obj.dataX.length - _num_days;
+        result_point = new this.point(0, 0);
+        //   _total = 0; //Dont need totals of graph data with rolling avg applied
+
+          for (var i = _start; i < this.graphs[index].graph_data_obj.dataX.length; i++) {
+            var _data_var = this.graphs[index].graph_data_obj.dataY[i];
+            // if (_check_region == "California") {
+            //     inform(_data_var, i2);
+            // }
+            _lin_reg_sumx = _lin_reg_sumx + i;
+            _lin_reg_sumx2 = _lin_reg_sumx2 + i * i;
+            _lin_reg_sumy = _lin_reg_sumy + _data_var;
+            _lin_reg_sumxy = _lin_reg_sumxy + i * _data_var;
+            
+          }
+          ret_value.slope = (run_length * _lin_reg_sumxy - _lin_reg_sumx * _lin_reg_sumy) / (run_length * _lin_reg_sumx2 - _lin_reg_sumx * _lin_reg_sumx)
+          ret_value.y_intercept = (_lin_reg_sumy - ret_value.slope * _lin_reg_sumx) / run_length
+          return ret_value;
+    },
+
+    add_top_regions: function(_num_regions, _num_days, _style){
         var _context = this.get_context();
         var _region_list = [];
         var _prev_region = "";
@@ -1096,6 +1137,11 @@ const COVID_SANDBOX_NS = {
         var _data = this.affected_data[_context].data;
         var _total = 0;
 
+        var _lin_reg_sumx = 0;
+        var _lin_reg_sumx2 = 0;
+        var _lin_reg_sumy = 0;
+        var _lin_reg_sumxy = 0;
+        var _y_intercept = 0;
          
         if (this.run < 1) this.run = 1;
 
@@ -1104,30 +1150,51 @@ const COVID_SANDBOX_NS = {
         if (_num_regions > this.affected_data[this.get_context()].region_list.length) _num_regions = this.affected_data[this.get_context()].region_list.length;
         else if (_num_regions < 1) _num_regions = 1;
 
+        var run_length = _num_days;
         var start = this.run - _num_days;
-        var restart = true;
+        var new_region = true;
+        var section_offset = 0;
 
         for (var i = start; i < _data.length; i++) {
  
             _check_region = _data[i][_region_name_column];
 
-            if (restart) {
+            if (new_region) {
                 _prev_region = _check_region;
-                restart = false;
+                new_region = false;
             }
 
             //Sum region totals:
             if (_check_region == _prev_region) {
+                if (_style == "Fastest Rising") {
+                    var i2 = i - (section_offset * this.run) + 1;
+                    var _data_var = _data[i][_affected_column];
+                    _lin_reg_sumx = _lin_reg_sumx + i2;
+                    _lin_reg_sumx2 = _lin_reg_sumx2 + i2 * i2;
+                    _lin_reg_sumy = _lin_reg_sumy + _data_var;
+                    _lin_reg_sumxy = _lin_reg_sumxy + i2 * _data_var;
+                }
                 _total += _data[i][_affected_column];
             }
             else {
+                _slope = (run_length * _lin_reg_sumxy - _lin_reg_sumx * _lin_reg_sumy) / (run_length * _lin_reg_sumx2 - _lin_reg_sumx * _lin_reg_sumx)
+                _y_intercept = (_lin_reg_sumy - _slope * _lin_reg_sumx) / run_length
                 _region_list.push({ region:_data[i-1][_region_name_column],
-                                    total:_total
+                                    total:_total,
+                                    slope: _slope,
+                                    y_intercept: _y_intercept
                                 });
                 _total = 0;
 
+                _lin_reg_sumx = 0;
+                _lin_reg_sumx2 = 0;
+                _lin_reg_sumy = 0;
+                _lin_reg_sumxy = 0;
+                
+
                 i += start-1; //skip ahead by days 
-                restart = true;
+                new_region = true;
+                section_offset ++;
             }
  
             _prev_region = _check_region;
@@ -1135,12 +1202,16 @@ const COVID_SANDBOX_NS = {
         
         //Last region in list (e.g. Wyoming) (confirmed 11/23/2020)
         _region_list.push({ region: _data[_data.length-1][_region_name_column],
-                            total: _total
+                            total: _total,
+                            slope: _slope,
+                            y_intercept: _y_intercept
                         });
+        if (_style == "Fastest Rising") _region_list.sort(function(a, b) {return b.slope - a.slope;}); //sort by descending slope
+        else _region_list.sort(function(a, b) {return b.total - a.total;}); //sort by descending total
 
-        _region_list.sort(function(a, b) {return b.total - a.total;}); //sort by descending total
         var _full_list = _region_list;
         _region_list = _region_list.slice(0, _num_regions);
+        // inform(_full_list, _region_list);
 
         for (var i = 0; i < _region_list.length; i++) {
             var try_region = this.create_region_of_interest(this.regions_of_interest, _region_list[i].region, _context, false);
@@ -1154,12 +1225,14 @@ const COVID_SANDBOX_NS = {
         
         //Log full list to textarea
         var context_str = new this.header_obj(_context);
-        // inform(_full_list, _region_list);
 
-        var str = "Across last " + _num_days + " days:\n" + "List of region totals as % of respective state/country sorted by (" + context_str.affected_column + ")\n\n";
+
+        if (_style == "Fastest Rising") var str = "Across last " + _num_days + " days:\n" + "List of fastest rising regions sorted by linear regression slope for (" + context_str.affected_column + ")\n\n";
+        else var str = "Across last " + _num_days + " days:\n" + "List of region totals as % of respective state/country total population sorted by (" + context_str.affected_column + ")\n\n";
 
         for (var i = 0; i < _full_list.length; i++) {
-            str = str + (i + 1) + '. ' + _full_list[i].region + ' ' + Number.parseFloat(_full_list[i].total).toPrecision(5) + '%\n';
+            if (_style == "Fastest Rising") str = str + (i + 1) + '. ' + _full_list[i].region + ': y = (' + Number.parseFloat(_full_list[i].slope).toPrecision(5) +')x + ' + Number.parseFloat(_full_list[i].y_intercept).toPrecision(5) + '\n';
+            else str = str + (i + 1) + '. ' + _full_list[i].region + ' ' + Number.parseFloat(_full_list[i].total).toPrecision(5) + '%\n';
         }
 
         var divider_str = "\n*****************************\n\n*****************************\n";
@@ -1466,6 +1539,7 @@ const COVID_SANDBOX_NS = {
         this.remove_top_regions.parent = this;
         this.find_my_index.parent = this;
         this.recalculate_peaks_totals.parent = this;
+        this.do_linear_regression_graph.parent = this;
 
         delete this.init;
         return this;
@@ -1597,16 +1671,24 @@ $(document).ready(function() {
         }
     });
     
-    //Event handler for ranking dropdown Peak / Total change 
+    //Event handler for ranking dropdown Peak / Total / Slope change 
     $('#ranking_dropdown').change(function () {
         "use strict";
         var highlighted = $( "#ranking_dropdown option:selected" ).text();
         // inform(highlighted);
-        if (highlighted > COVID_SANDBOX_NS.max_date) highlighted = COVID_SANDBOX_NS.max_date;
-        else if (highlighted < 1) highlighted = 1;
+        // if (highlighted > COVID_SANDBOX_NS.max_date) highlighted = COVID_SANDBOX_NS.max_date;
+        // else if (highlighted < 1) highlighted = 1;
         COVID_SANDBOX_NS.ranking = highlighted;
     });
 
+    $('#slope_dropdown').change(function () {
+        "use strict";
+        var highlighted = $( "#ranking_dropdown option:selected" ).text();
+        // inform(highlighted);
+        // if (highlighted > COVID_SANDBOX_NS.max_date) highlighted = COVID_SANDBOX_NS.max_date;
+        // else if (highlighted < 1) highlighted = 1;
+        COVID_SANDBOX_NS.ranking = highlighted;
+    });
 
     //Event handler for Rolling Average Checkbox
     $('#sevendayavg').change(function () {
@@ -1632,6 +1714,20 @@ $(document).ready(function() {
     custom_slider_range.addEventListener('input', function (val) {
       avg_rolling_input.value = val.target.value;
     });
+
+    
+    //Pure javascript to synchronize slope dropdown to arrange dropdowns
+    var slope_selection = document.getElementById('slope_dropdown');
+    var arrange_selection = document.getElementById('ranking_dropdown');
+    
+    slope_selection.addEventListener('input', function (val) {
+        var _val = val.target.value;
+        if (_val == "Highest") arrange_selection.value = "Total";
+        else if (_val == "Fastest Rising") arrange_selection.value = "Slope";
+    });
+    // arrange_selection.addEventListener('input', function (val) {
+    //     slope_selection.value = val.target.value;
+    // });
      
 
     //Event handler for Rolling Average Input Box
@@ -1678,7 +1774,7 @@ $(document).ready(function() {
     //Event handler for top regions add button
     $('#add_top_regions_button').click(function() {
         "use strict";
-        COVID_SANDBOX_NS.add_top_regions($('#top_regions').val(), $('#top_regions_days').val());
+        COVID_SANDBOX_NS.add_top_regions($('#top_regions').val(), $('#top_regions_days').val(),$( "#slope_dropdown option:selected" ).text());
         // COVID_SANDBOX_NS.clip_bounding_box_by_graph(); 
         // COVID_SANDBOX_NS.arrange_region_labels();
     });

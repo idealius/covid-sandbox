@@ -1,9 +1,9 @@
 DID
-Added About link to github project in footer
-months x axis ticks now properly align with days data
+changed order of graph colors
 
 
 Todo!
+add cookies to save things like graph curve stroke width and fill/ no fill
 Work on dynamic arranging of labels by window width
 Maybe: change text area to contenteditarea so we can highlight number of days
 add dynamic "Working with N regions" text
