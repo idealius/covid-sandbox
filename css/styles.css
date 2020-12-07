@@ -27,11 +27,11 @@ p {
   left: 0;
   /* content:url("img/Spicy_Covid_Graphs_Logo.png"); */
 }
-
+/* 
 .top_regions_buttons {
   width: 24px;
   height:24px;
-}
+} */
 
 
 #banner_background {
@@ -403,7 +403,15 @@ input, textarea, select, button {
       border: 1px solid rgb(0, 0, 0);
       border-radius: 3px;
     }
+/* 
+    #add_top_regions_button {
+      content: "Add";
+    }
 
+    #remove_top_regions_button {
+      content: "Remove";
+    }
+     */
     #rolling_avg_box {
       width: 200px;
     }
