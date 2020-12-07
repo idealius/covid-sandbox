@@ -49,6 +49,8 @@ const COVID_SANDBOX_NS = {
     //For holding updating graph regions on window.resize()
     hold_resize: false,
 
+    filled_graphs: true,
+
     //Used for rolling avg changes in window
     last_rolling_val: -1,
     last_rolling_bool: -1,
@@ -85,6 +87,7 @@ const COVID_SANDBOX_NS = {
         this.context = _context;
         this.split_context = COVID_SANDBOX_NS.interpret_context(_context);
         this.max = _max;
+        this.filled = this.filled_graphs;
     },
 
     graphs: [],
@@ -802,12 +805,12 @@ const COVID_SANDBOX_NS = {
         var my_color_index = _index % Object.keys(this.custom_colors).length;
 
         var my_color = this.custom_colors[my_color_index].value;
-
+        var fill_color = this.filled_graphs ? my_color : 'none';
        
 
         var graph = this.board.create('curve', [x,y], {
             strokeColor:my_color,
-            fillColor:my_color, 
+            fillColor:fill_color, 
             fillOpacity:.5, 
             name:"curve", 
             strokeWidth:1.5,
@@ -1016,7 +1019,7 @@ const COVID_SANDBOX_NS = {
             for (var i2 = 0; i2 < this.graphs[i].graph_data_obj.dataY.length; i2++) {
                 if (this.graphs[i].graph_data_obj.dataY[i2] > _max_y) {
                     _max_y = this.graphs[i].graph_data_obj.dataY[i2];
-                    var last_obj = this.graphs[i].graph_data_obj;
+                    // var last_obj = this.graphs[i].graph_data_obj;
                 }
             }
         }
@@ -1231,7 +1234,8 @@ const COVID_SANDBOX_NS = {
         else var str = "Across last " + _num_days + " days:\n" + "List of region totals as % of respective state/country total population sorted by (" + context_str.affected_column + ")\n\n";
 
         for (var i = 0; i < _full_list.length; i++) {
-            if (_style == "Fastest Rising") str = str + (i + 1) + '. ' + _full_list[i].region + ': y = (' + Number.parseFloat(_full_list[i].slope).toPrecision(5) +')x + ' + Number.parseFloat(_full_list[i].y_intercept).toPrecision(5) + '\n';
+            // if (_style == "Fastest Rising") str = str + (i + 1) + '. ' + _full_list[i].region + ': y = (' + Number.parseFloat(_full_list[i].slope).toPrecision(5) +')x + ' + Number.parseFloat(_full_list[i].y_intercept).toPrecision(5) + '\n';
+            if (_style == "Fastest Rising") str = str + (i + 1) + '. ' + _full_list[i].region + ' ' + Number.parseFloat(_full_list[i].slope).toPrecision(5) + '\n';
             else str = str + (i + 1) + '. ' + _full_list[i].region + ' ' + Number.parseFloat(_full_list[i].total).toPrecision(5) + '%\n';
         }
 
@@ -1361,6 +1365,11 @@ const COVID_SANDBOX_NS = {
 
     //This function is just to make the fillcolor look correct/good
     add_tidy_endpoints: function(graph) {
+        if (!this.filled_graphs) {
+            graph.fillColor = 'none';
+            return; //If checkbox unchecked return
+        }
+        graph.filled = this.filled_graphs;
         graph.dataX.splice(0, 0, 0); //insert 0 x & value at start of array
         graph.dataY.splice(0, 0, 0); 
         graph.dataX.push(graph.dataX.length-2); //append a duplicate x value and a 0 y value at the end of our data 
@@ -1370,6 +1379,7 @@ const COVID_SANDBOX_NS = {
 
     //This function is to remove the added tidy points
     remove_tidy_endpoints: function(graph) {
+        if (!graph.filled) return; //if graph doesn't have endpoints return
         graph.dataX.rem(0);
         graph.dataX.rem(-1); 
         graph.dataY.rem(0);
@@ -1571,6 +1581,7 @@ $(document).ready(function() {
 
     //Read page values and assign them to the respective namespace variables
     COVID_SANDBOX_NS.rolling_day_average_enabled = document.getElementById('sevendayavg').checked
+    COVID_SANDBOX_NS.filled_graphs = document.getElementById('filled_graphs_checkbox').checked
     COVID_SANDBOX_NS.rolling_day_value = $('#rolling_days').val();
     COVID_SANDBOX_NS.days = $('#top_regions_days').val();
     COVID_SANDBOX_NS.ranking = $( "#ranking_dropdown option:selected" ).text();
@@ -1701,6 +1712,25 @@ $(document).ready(function() {
             inform($(this).val() + ' is now unchecked');
             COVID_SANDBOX_NS.rolling_day_average_enabled = false;
             COVID_SANDBOX_NS.update_rolling_average(COVID_SANDBOX_NS.regions_of_interest, true);
+        }
+    }); 
+    
+    //Event handler for filled graphs checkbox
+    $('#filled_graphs_checkbox').change(function () {
+        "use strict";
+        if ($(this).is(':checked')) {
+            inform($(this).val() + ' is now checked');
+            COVID_SANDBOX_NS.filled_graphs = true;
+            // COVID_SANDBOX_NS.update_rolling_average(COVID_SANDBOX_NS.regions_of_interest, true);
+            redo_graphs();
+            COVID_SANDBOX_NS.arrange_region_labels();
+            // COVID_SANDBOX_NS.update();
+        } else {
+            inform($(this).val() + ' is now unchecked');
+            COVID_SANDBOX_NS.filled_graphs = false;
+            // COVID_SANDBOX_NS.update_rolling_average(COVID_SANDBOX_NS.regions_of_interest, true);
+            redo_graphs();
+            COVID_SANDBOX_NS.arrange_region_labels();
         }
     });
 
@@ -1835,24 +1865,7 @@ $(document).ready(function() {
 
             COVID_SANDBOX_NS.viewport_width = window_size;
     
-            var _region_list = COVID_SANDBOX_NS.regions_of_interest;
-            var buffer = [];
-            for (var i = 0; i< _region_list.length; i++) { //buffer the regions
-                var try_region = COVID_SANDBOX_NS.create_region_of_interest(buffer, _region_list[i].region, _region_list[i].context, true)
-            }
-            // inform(buffer);
-            COVID_SANDBOX_NS.clear_all(false);
-            COVID_SANDBOX_NS.initialize_graph(); //browser context is changed in function <-
-            // inform(buffer);
-            // var num = buffer.length;
-            // if (num > 35) {
-            //     num = 10;
-            // }
-            COVID_SANDBOX_NS.regions_of_interest = buffer;
-            for (var i = 0; i < COVID_SANDBOX_NS.regions_of_interest.length; i++) {
-                // COVID_SANDBOX_NS.create_region_of_interest(COVID_SANDBOX_NS.regions_of_interest, buffer[i].region, buffer[i].context)
-                COVID_SANDBOX_NS.add_region_to_graph(COVID_SANDBOX_NS.regions_of_interest, i, COVID_SANDBOX_NS.regions_of_interest[i].context);
-            }
+            redo_graphs();
 
             COVID_SANDBOX_NS.clip_bounding_box_by_graph(); 
             COVID_SANDBOX_NS.arrange_region_labels(-1);
@@ -1861,6 +1874,28 @@ $(document).ready(function() {
           }, 500, "Graph update" + _date_timer.getTime());
        
       });
+
+    
+    function redo_graphs() {
+        var _region_list = COVID_SANDBOX_NS.regions_of_interest;
+        var buffer = [];
+        for (var i = 0; i< _region_list.length; i++) { //buffer the regions
+            var try_region = COVID_SANDBOX_NS.create_region_of_interest(buffer, _region_list[i].region, _region_list[i].context, true)
+        }
+        // inform(buffer);
+        COVID_SANDBOX_NS.clear_all(false);
+        COVID_SANDBOX_NS.initialize_graph(); //browser context is changed in function <-
+        // inform(buffer);
+        // var num = buffer.length;
+        // if (num > 35) {
+        //     num = 10;
+        // }
+        COVID_SANDBOX_NS.regions_of_interest = buffer;
+        for (var i = 0; i < COVID_SANDBOX_NS.regions_of_interest.length; i++) {
+            // COVID_SANDBOX_NS.create_region_of_interest(COVID_SANDBOX_NS.regions_of_interest, buffer[i].region, buffer[i].context)
+            COVID_SANDBOX_NS.add_region_to_graph(COVID_SANDBOX_NS.regions_of_interest, i, COVID_SANDBOX_NS.regions_of_interest[i].context);
+        }
+    }
 
     //Timer for rolling day avg input box check
     function check_for_avg_change() {
