@@ -358,7 +358,7 @@ input, textarea, select, button {
 
     :root {
       --slider_width: 90px;
-      --radio_size: 12px;
+      --radio_size: 16px;
     }
 
     #banner_img {
@@ -420,10 +420,10 @@ input, textarea, select, button {
       width:24px;
     }
 
-    .top_regions_buttons {
+    /* .top_regions_buttons {
       width: fit-content;
       height: fit-content;
-    }
+    } */
 
     .small-float-box {
       line-height: normal;
@@ -453,6 +453,14 @@ input, textarea, select, button {
       font-size: 16px;
       margin: 4px 2px;
       border-radius: 12px;
+    }
+
+    .radio_container {
+      padding-left: calc(var(--radio_size)*1.59);
+      margin-top: calc(var(--radio_size) *1);
+      margin-bottom: calc(var(--radio_size) *1);
+      margin-right: calc(var(--radio_size) *1);
+      margin-left: calc(var(--radio_size) *1);
     }
 
     .slider::-webkit-slider-thumb {

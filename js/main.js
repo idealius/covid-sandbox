@@ -55,6 +55,8 @@ const COVID_SANDBOX_NS = {
     xaxis: {},
     abbv_xaxis: {},
 
+    generated_curves: [],
+
     //For holding updating graph regions on window.resize()
     hold_resize: false,
 
@@ -348,7 +350,7 @@ const COVID_SANDBOX_NS = {
     //Code based on https://www.intmath.com/cg3/jsxgraph-axes-ticks-grids.php
     //Months on x-axis
     alt_x_axis: function() {
-        JXG.Options.slider.ticks.majorHeight = 0;
+        // JXG.Options.slider.ticks.majorHeight = 0;
 
         this.board = JXG.JSXGraph.initBoard('jsxbox',{
           boundingbox: [-50,this.max_affected.y,this.max_date+20,-.05], 
@@ -369,6 +371,7 @@ const COVID_SANDBOX_NS = {
         COVID_SANDBOX_NS.xaxis = this.board.create('axis', 
             [[0,0],[1,0]], {
             needsRegularUpdate: false,
+            majorHeight: 15,
             strokeColor: 'grey',
             fontsize:this.browser_context_list[this.browser_context].axis_font_size
             });
@@ -377,18 +380,13 @@ const COVID_SANDBOX_NS = {
         COVID_SANDBOX_NS.abbv_xaxis = this.board.create('axis', 
             [[0,0],[1,0]], {
             needsRegularUpdate: false,
+            majorHeight: 15,
             strokeColor: 'grey',
             fontsize:this.browser_context_list[this.browser_context].axis_font_size
         });
 
 
-        var vert_offset = -.04;
-        // var xaxis_years = this.board.create('axis', [[0,vert_offset],[1,vert_offset]],
-        //     {
-        //     needsRegularUpdate: false,
-        //     strokeColor: 'grey',
-        //     visible: 'false'
-        // });
+
 
         this.xaxis.removeTicks(this.xaxis.defaultTicks);
         this.abbv_xaxis.removeTicks(this.abbv_xaxis.defaultTicks);
@@ -425,11 +423,10 @@ const COVID_SANDBOX_NS = {
         this.xaxis.ticks = this.board.create('ticks', [this.xaxis, 
             this.months_run], {
             labels: this.date_labels,
-            // majorHeight: 15, 
+            majorHeight: 15, 
             drawLabels: true, 
             needsRegularUpdate: false,
-
-            visible: false,
+            visible: true,
             label: {
                 visible: true,
                 cssClass:"region_labels_bright",
@@ -445,7 +442,7 @@ const COVID_SANDBOX_NS = {
         this.abbv_xaxis.ticks = this.board.create('ticks', [this.abbv_xaxis, 
             this.months_run], {
             labels: this.abbv_date_labels,
-            // majorHeight: 15, 
+            majorHeight: 15, 
             drawLabels: false, 
             needsRegularUpdate: false,
             visible: false,
@@ -460,7 +457,6 @@ const COVID_SANDBOX_NS = {
             },
             // precision:5
           });
-          inform(this.abbv_xaxis);
         // var ticks_years = this.board.create('ticks', [xaxis_years, 
         // years_run], {
         // labels: years_array,
@@ -476,7 +472,7 @@ const COVID_SANDBOX_NS = {
         //     },
         // });
 
-        // inform(ticks);
+        inform(this.xaxis);
         // var xTicks, yTicks, bb;
         var yTicks, bb;
         // xaxis.defaultTicks.ticksFunction = function () { return xTicks; };
@@ -586,6 +582,283 @@ const COVID_SANDBOX_NS = {
         });
     },
 
+    fun_base: function(xi, curve_index) {
+        var P = this.generated_curves[curve_index].Parms;
+        var top = this.generated_curves[curve_index].top ;
+        var riser = this.generated_curves[curve_index].riser;
+        var base = xi;
+        // if (base < 0) {
+        //     var first_order = 1 - P[0]*Math.abs(base)**Math.abs(P[1]);
+        // }
+        // else 
+        var first_order = 1 + P[0]*base**-Math.abs(P[1]);
+        // base = P[3]
+        // if (base < 0) {
+        //     var second_order =  1 - P[2]*Math.abs(base)**-(xi + x_off);
+        // }
+        // else
+        var second_order =  1 + P[2]*base**-Math.abs(P[3]);
+
+        // inform (test);
+        if (first_order == NaN || second_order == NaN) return 0;
+        else var ret_value = (top + riser) / first_order - (top + riser) / second_order + riser;
+        return ret_value;
+        // return (top + riser) / (1 + P[0]*(xi + x_off)**Math.abs(P[1])) - (top + riser) / (1 + P[2]*P[3]**-(xi + x_off)) + riser;
+    },
+
+    logistic_regression_with_decay: function(index, _start, _end, riser) {
+
+        // var context = this.graphs[index].columns.affected_column;
+        var y_data = this.graphs[index].graph_data_obj.dataY;
+        var x_data = this.graphs[index].graph_data_obj.dataX;
+
+        if (!_end) _end = Infinity;
+        var y = y_data.slice(_start,_end);
+        var x = x_data.slice(_start,_end);
+
+        var top = Math.max(...y);
+        // inform(top);
+        // top = top + top / 10
+        // var riser = Math.min(...y);
+        if (!riser) riser = 0;
+        // var riser = 0;
+        // var fun = function(x,P){return x.map(function(xi){return (top + riser) / (1 + P[0]*(xi + x_off)**Math.abs(P[1])) - (top + riser) / (1 + P[2]*P[3]**-(xi + x_off)) + riser })};
+       
+
+        var fun = function(_x,P) {
+            // inform(_x);
+            // inform(P[3], this);
+            return [].map.call(_x, function(xi) {
+                var base = xi;
+                // if (base < 0) {
+                //     var first_order = 1 - P[0]*Math.abs(base)**Math.abs(P[1]);
+                // }
+                // else 
+                var first_order = 1 + P[0]*base**-Math.abs(P[1]);
+                // base = P[3]
+                // if (base < 0) {
+                //     var second_order =  1 - P[2]*Math.abs(base)**-(xi + x_off);
+                // }
+                // else 
+                var second_order =  1 + P[2]*base**-Math.abs(P[3]);
+
+                // inform (test);
+                if (first_order == NaN || second_order == NaN) return 0;
+                else var ret_value = (top + riser) / first_order - (top + riser) / second_order + riser;
+                return ret_value;
+                // return (top + riser) / (1 + P[0]*(xi + x_off)**Math.abs(P[1])) - (top + riser) / (1 + P[2]*P[3]**-(xi + x_off)) + riser;
+            });
+        };
+
+        // fun = function(x,P){return x.map(function(xi){return (P[0]+1/(1/(P[1]*(xi-P[2]))+1/P[3]))})}
+        
+        // inform(fun(21, [.210868, 0, .17, .88]));
+        
+        // x2 = [10, 30, 50];
+        // y2 = [.001, .08, .001];
+
+        // Parms2 = fminsearch(fun, [.2,.000001, .17, .88], x2, y2, {maxIter:5000,display:false});
+
+        // inform(Parms2);
+        
+        Parms = fminsearch(fun, [.2,.000001, .17, .88], x, y, {maxIter:5000,display:false});
+        // Parms = fminsearch(fun, [.0000001, 6, 400000, 5], x, y, {maxIter:5000,display:false}); // Terrible
+        //Parms = fminsearch(fun, [.000001, 3, 35, .75], x, y, {maxIter:5000,display:false});
+
+        // Parms = fminsearch(fun, [.2,.000002, .2, .2], x, y, {maxIter:1000,display:false});
+        inform(Parms);
+
+        this.generated_curves.push({});
+        var _curves_index = this.generated_curves.length-1;
+        this.generated_curves[_curves_index].Parms = Parms;
+        this.generated_curves[_curves_index].top = top;
+        this.generated_curves[_curves_index].riser = riser;
+        this.generated_curves[_curves_index].start = _start;
+        this.generated_curves[_curves_index].end = _end;
+  
+        
+        this.generated_curves[_curves_index].curve = this.board.create('functiongraph',
+            [function(x){ return COVID_SANDBOX_NS.fun_base(x, _curves_index);},
+                COVID_SANDBOX_NS.generated_curves[_curves_index].start, // a < x (left bounds)
+                COVID_SANDBOX_NS.generated_curves[_curves_index].end // b < x (right bounds)
+            ]
+        );
+    },
+
+    generate_curves: function() {
+        //My logistic function with decay:      |-------------logistic growth-------------------|   |---------logistic decay---------------|
+        //                                      (t+q)/(1 + m*(x_sca*x + x_sca*x_off)^Math.abs(g)) - (t+q)/(1+a*c^-(x_sca*x+x_sca*x_off)) + q
+
+        // (top + riser) / (1 + P[0]*(x + x_off)**Math.abs(P[1])) - (top + riser) / (1 + P[2]*P[3]**-(x + x_off)) + riser
+
+        // var x_sca = 1; //Function scale
+
+        // var x; //growth base exponentiation (x)
+        // var g; //growth exponent
+        // var m; //growth base multiplicative
+
+        // var t; //growth and decay top end
+        // var q; //growth, decay, and function y axis boost
+
+        // var a; //decay base exponentiation
+        // var c; //decay base multiplicative
+
+
+
+
+        //My pseudo code for peak / valley finding:
+        
+        // minimum x-threshold in days, say 21 days.
+        // y-threshold in relation to top y value, say top y value / 30
+
+        //Need to add plateau tracking
+
+        // iterate over x
+        // track lowest y > 0 (track x-start for this y position) (find first nonzero lowest peak's x value)
+        // track highest y (track x position for this y position)
+        // track lowest y since highest y (track x-stop for this y position)
+        // wait until an overall slope over the last x-threshold / 2 is negative
+        // -> store x-start, store highest y's x position (PEAK)
+        // wait until an overall slope over the last x-threshold / 2 is positive
+        // -> store x-stop with prior entry (VALLEY), store x-start with next entry
+        // repeat
+        // Implementation:
+        
+
+
+        // var plateau_threshold = this.get_max_graph_affected(_index) / plateau_threshold;
+        var x_off = 0; //Offset on x-axis
+        var _index = this.graphs.length-1;
+        var _data = this.graphs[_index].graph_data_obj;
+        var _data_length = _data.dataX.length;
+
+        var threshold = 10; //Minimum days to detect a valley / peak
+        var plateau_threshold = .0001; //Maximum pos/neg slope for algo to track a plateau
+        // var plateau_threshold = .001; //Maximum pos/neg slope for algo to track a plateau
+        var plateau_x_start = _data_length;
+        var running_plateau = false;
+
+        var peaks_and_valleys = [];
+        peaks_and_valleys.push({})
+
+
+        var low_y = 0 // valley start y value
+        var valley_start = 0; // valley start x value
+        var high_y = 0;
+        var high_x = 0;
+
+        var low_y2 = 0; // after peak low y
+        var valley2_start = 0;
+        var slope = 0;
+
+        var peak_index = 0;
+        for (var x = 0; x < _data.dataX.length; x++) {
+            var current_y = _data.dataY[x];
+            
+            if (current_y > 0 && low_y == 0) { //Track first valley
+                low_y = current_y;
+                valley_start = x;
+            }
+            
+            if (current_y >= high_y) { //Track peak
+                high_x = x;
+                high_y = current_y;
+                low_y2 = current_y;
+            }
+
+            if (x > 0) slope = current_y - _data.dataY[x-1]; // Check our current slope
+            if (Math.abs(slope) < plateau_threshold*4) { //If it's in plateau threshold..
+                if (plateau_x_start == _data_length) { //Are we starting a new plateau? If so..
+                    plateau_x_start = x; //Track plateau
+                    running_plateau = true; //(For telling if we reach an end of plateau)
+                }
+                else {
+                    var lin_reg = this.do_linear_regression_graph(_index, plateau_x_start, x); //We have a running plateau already, lets check overall slope for it
+                    inform(lin_reg.slope);
+                    if (Math.abs(lin_reg.slope)  > plateau_threshold*4) {
+                        // plateau_x_start = _data_length; //Slope magnitude is too high lets reset plateau tracking
+                        running_plateau = false;
+                        inform("Plateau reset at: " + x);
+                    }
+                }
+                // inform(this.do_linear_regression_graph(_index, plateau_x_start, x));
+            }
+            else running_plateau = false;
+
+            if (current_y <= low_y2) { //Track potential next valley
+                low_y2 = current_y;
+                valley2_start = x;
+            }
+            // PEAK & VALLEY START FINDER
+            // If the distance for x has surpassed a peak or plateau marker by threshold and we have a peak (or if we're just at the end of the dataset)...
+            if (((x - high_x >= threshold / 2 || x - plateau_x_start >= threshold) && high_x > 0) || x == _data.dataX.length-1) { //Look at registering the first valley and peak
+                //var lin_reg = this.do_linear_regression_graph(_index, high_x, x);
+                // inform(lin_reg);
+                // if (lin_reg.slope < 0) { // Register prior valley and current peak
+                    peaks_and_valleys[peak_index].valley_start = valley_start;
+                    peaks_and_valleys[peak_index].peak_x = high_x;
+                    
+                // }
+            }
+
+            // STOP FINDER (VALLEY END)
+            // If the distance for our 2nd valley is beyond threshold and there's no running plateau, or if the distance for our plateau has ended and we have a peak, close off peak/plateau run...
+            if (((x - valley2_start >= threshold / 2 && x - plateau_x_start < threshold) || (x - plateau_x_start >= threshold && !running_plateau)) && high_x > 0) { //Look at closing out the registered first valley and peak with the second valley and restarting
+                var lin_reg = this.do_linear_regression_graph(_index, valley2_start, x);
+                // inform(lin_reg);
+                if (lin_reg.slope > 0 && !peaks_and_valleys[peak_index].valley_end) {
+                    peaks_and_valleys[peak_index].valley_end = valley2_start;
+                   
+                    if (_data.dataY[peaks_and_valleys[peak_index].valley_start] < _data.dataY[valley2_start]) peaks_and_valleys[peak_index].riser = current_y;
+                    else peaks_and_valleys[peak_index].riser = _data.dataY[peaks_and_valleys[peak_index].valley_start];
+                    low_y = low_y2;
+                    valley_start = valley2_start;
+
+                    low_y2 = 0; 
+                    valley2_start = 0;
+                    high_y = 0;
+                    high_x = 0;
+
+                    plateau_x_start = _data_length;
+                    running_plateau = false;
+
+                    peak_index ++;
+                    peaks_and_valleys.push({});
+                }
+
+                if (!running_plateau) plateau_x_start = _data_length;
+
+            }
+            
+
+        }
+
+        if (!peaks_and_valleys[peak_index].valley_end) { //This is for the case of the last peak
+            // peaks_and_valleys[peak_index-1].valley_start = peaks_and_valleys[peak_index-1].valley_end;
+            // peaks_and_valleys[peak_index].valley_end = Infinity;
+            peaks_and_valleys[peak_index].valley_end = Infinity;
+            if (_data.dataY[peaks_and_valleys[peak_index].valley_start] < _data.dataY[valley2_start]) peaks_and_valleys[peak_index].riser = current_y;
+            else peaks_and_valleys[peak_index].riser = _data.dataY[peaks_and_valleys[peak_index].valley_start];
+
+            // var peak_range = peaks_and_valleys[peak_index].peak_x * 2
+            // peaks_and_valleys.push({valley_start: peaks_and_valleys[peak_index].valley_start, 
+            //                         peak_x: peak_range,
+            //                         valley_end: peaks_and_valleys[peak_index].valley_end, 
+            //                         riser: peaks_and_valleys[peak_index].riser
+            //                     });
+        }
+        if (!peaks_and_valleys[peak_index].peak_x) peaks_and_valleys.pop(); // If we don't have a peak for the last index remove the whole index
+
+        inform(peaks_and_valleys);
+
+        peaks_and_valleys.forEach(element => this.logistic_regression_with_decay(_index, element.valley_start, element.valley_end, element.riser));
+
+        
+        return;
+
+       
+    },
+
     //Create a blank graph with dimensions defined by the first region's data (Alabama)
     initialize_graph: function() {
 
@@ -599,14 +872,17 @@ const COVID_SANDBOX_NS = {
         var _data = this.affected_data[context].data;
         var temp_region = [];
         // push_region_obj(temp_region, context, this.affected_data[context].data, this.affected_data[context].data[0][this.affected_data[context].columns.affected_column]);
-        this.create_region_of_interest(temp_region, _data[0][_region_column], context, false);
+        this.create_region_of_interest(temp_region, _data[0][_region_column], context, true);
+
+        this.max_date = temp_region[0].data.length;
+        this.run = temp_region[0].data.length;
 
         var _affected_column = _parent_data.columns.affected_column;
         this.max_affected = this.get_max_base_affected(temp_region[0], _affected_column);
         this.max_affected.y = this.max_affected.y + this.max_affected.y / 8;
+        inform (this.max_affected);
 
-        this.max_date = temp_region[0].data.length;
-        this.run = temp_region[0].data.length;
+ 
 
         JXG.Options.text.cssDefaultStyle = '';
         JXG.Options.text.highlightCssDefaultStyle = '';
@@ -619,6 +895,7 @@ const COVID_SANDBOX_NS = {
 
         this.viewport_width = $(window).width();
         this.viewport_height = $(window).height();
+        inform(this.viewport_width);
 
         if (this.viewport_width < 768) this.browser_context = 'mobile';
         else this.browser_context = 'desktop';
@@ -698,7 +975,7 @@ const COVID_SANDBOX_NS = {
 
     //Updates axes and arrows
     update_axes: function() {
-        this.board.update();
+        //this.board.update();
 
         //AXES:
         var bounding_box = this.board.getBoundingBox(); //returns 4 element array: 0-left, 1-upper, 2-right, 3-lower
@@ -707,7 +984,8 @@ const COVID_SANDBOX_NS = {
         else {
 
             var factor = 7;
-            var threshold = 29 * 30 // how many columns of month we should go over before we abbreviate
+            var threshold = this.viewport_width * .650054 + 220.758 // f(x) = .650(x) + 220
+
             if (bounding_box[2] - bounding_box[0] > threshold && !this.months_abbreviated) {
                 // this.xaxis.ticks.setAttribute({label:{visible: false}});
                 // this.abbv_xaxis.ticks.setAttribute({label:{visible: true}});
@@ -1054,15 +1332,16 @@ const COVID_SANDBOX_NS = {
         // inform(_graph_max_affected);
 
         //Translate / arrange on graph canvas
-        var bounds = this.board.getBoundingBox();
+        var bounds = this.board.getBoundingBox(); //returns 4 element array: 0-left, 1-upper, 2-right, 3-lower
         var left = bounds[0] + 100;
-        if (bounds[2] > highest_affected.x + highest_affected.x * .63) {//If we're scrolled far enough right lets start at the far right
-            left = highest_affected.x + 100;
+        // var width = bounds[2] - bound[0];
+        if (bounds[2] > this.run + this.run * .25) {//If we're scrolled far enough right lets start at the far right
+            left = this.run - 100;
         }
-        else if (bounds[2] > highest_affected.x + highest_affected.x * .35) { //If we're scrolled far enough right lets 'center' around peak
-            left = highest_affected.x - 100;
-        }
-        else if (left < 0) left = 100;  //Otherwise let's align to the right of the y axis
+        // else if (bounds[2] > 0) { //If we're scrolled far enough right lets 'center' around peak
+        //     left = highest_affected.x - 100;
+        // }
+        // else left = 100;  //Otherwise let's align to the right of the y axis
         var vert_percent = 75;
         var row_size = 4; // number of labels in each column
         _vert_space = _vert_space * (vert_percent / 100);
@@ -1199,7 +1478,8 @@ const COVID_SANDBOX_NS = {
         var run_length = _num_days;
 
         var _context = this.regions_of_interest[index].columns.affected_column;
-        var _length = this.regions_of_interest[index].data.length
+        // var _length = this.regions_of_interest[index].data.length
+        var _length = this.run;
         var _start = _length - _num_days;
         
 
@@ -1212,6 +1492,38 @@ const COVID_SANDBOX_NS = {
             _lin_reg_sumxy = _lin_reg_sumxy + i * _data_var;
             
           }
+          if (_lin_reg_sumx2 - _lin_reg_sumx * _lin_reg_sumx == 0) return ret_value; //avoid divide by 0
+          ret_value.slope = (run_length * _lin_reg_sumxy - _lin_reg_sumx * _lin_reg_sumy) / (run_length * _lin_reg_sumx2 - _lin_reg_sumx * _lin_reg_sumx)
+          ret_value.y_intercept = (_lin_reg_sumy - ret_value.slope * _lin_reg_sumx) / run_length
+          return ret_value;
+    },
+
+    do_linear_regression_graph: function(index, _start, _end) {
+
+        var _lin_reg_sumx = 0;
+        var _lin_reg_sumx2 = 0;
+        var _lin_reg_sumy = 0;
+        var _lin_reg_sumxy = 0;
+        var ret_value = {slope: 0, y_intercept: 0};
+        
+
+        if (_start < 0) _start = 0;
+        if (_end > this.graphs[index].graph_data_obj.dataY.length) _end = this.graphs[index].graph_data_obj.dataY.length;
+        if (_start == _end || _start > _end) return ret_value;
+        var run_length = _end-_start;
+        // var _length = this.regions_of_interest[index].data.length
+        // var _start = _length - _num_days;
+        
+
+          for (var i = _start; i < _end; i++) {
+            var _data_var = this.graphs[index].graph_data_obj.dataY[i];
+            _lin_reg_sumx = _lin_reg_sumx + i;
+            _lin_reg_sumx2 = _lin_reg_sumx2 + i * i;
+            _lin_reg_sumy = _lin_reg_sumy + _data_var;
+            _lin_reg_sumxy = _lin_reg_sumxy + i * _data_var;
+            
+          }
+          if (_lin_reg_sumx2 - _lin_reg_sumx * _lin_reg_sumx == 0) return ret_value; //avoid divide by 0
           ret_value.slope = (run_length * _lin_reg_sumxy - _lin_reg_sumx * _lin_reg_sumy) / (run_length * _lin_reg_sumx2 - _lin_reg_sumx * _lin_reg_sumx)
           ret_value.y_intercept = (_lin_reg_sumy - ret_value.slope * _lin_reg_sumx) / run_length
           return ret_value;
@@ -1600,46 +1912,47 @@ const COVID_SANDBOX_NS = {
     //give methods knowledge of their namespace
     init : function() {
         "use strict";
-        // this.affected_data_template.parent = this;
-        // this.header_obj.parent = this;
-        // this.fill_regions_dropdown.parent = this;
-        // this.process_data.parent = this;
-        // this.find_unique_regions.parent = this;
-        // this.create_region_of_interest.parent = this;
-        // this.get_context.parent = this;
-        // this.set_context.parent = this;
-        // this.get_max_base_affected.parent = this;
-        // this.get_max_graph_affected.parent = this;
-        // this.initialize_graph.parent = this;
-        // this.add_region_to_graph.parent = this;
-        // this.update_rolling_average.parent = this;
-        // this.transform_range.parent = this;
-        // this.add_tidy_endpoints.parent = this;
-        // this.remove_tidy_endpoints.parent = this;
-        // this.extract_affected.parent = this;
-        // this.apply_rolling_average.parent = this; 
-        // this.point.parent = this;
-        // this.update_region_label.parent = this;
-        // this.remove_invalid_regions.parent = this;
-        // this.add_axes.parent = this;
-        // this.update.parent = this;
-        // this.update_axes.parent = this;
-        // this.interpret_context.parent = this;
-        // this.browser_context_template.parent = this;
-        // this.add_top_regions.parent = this;
-        // this.clear_all.parent = this;
-        // this.clip_bounding_box_by_graph.parent = this;
-        // this.push_region_obj.parent = this;
-        // this.update_arrow_peak.parent = this;
-        // this.arrange_region_labels.parent = this;
-        // this.duplicate_graph_check.parent = this;
-        // this.alt_x_axis.parent = this;
-        // this.remove_top_regions.parent = this;
-        // this.find_my_index.parent = this;
-        // this.recalculate_peaks_totals.parent = this;
-        // this.do_linear_regression.parent = this;
-        // this.remove_graph.parent = this;
-        // this.graph_status_obj.parent = this;
+        this.affected_data_template.parent = this;
+        this.header_obj.parent = this;
+        this.fill_regions_dropdown.parent = this;
+        this.process_data.parent = this;
+        this.find_unique_regions.parent = this;
+        this.create_region_of_interest.parent = this;
+        this.get_context.parent = this;
+        this.set_context.parent = this;
+        this.get_max_base_affected.parent = this;
+        this.get_max_graph_affected.parent = this;
+        this.initialize_graph.parent = this;
+        this.add_region_to_graph.parent = this;
+        this.update_rolling_average.parent = this;
+        this.transform_range.parent = this;
+        this.add_tidy_endpoints.parent = this;
+        this.remove_tidy_endpoints.parent = this;
+        this.extract_affected.parent = this;
+        this.apply_rolling_average.parent = this; 
+        this.point.parent = this;
+        this.update_region_label.parent = this;
+        this.remove_invalid_regions.parent = this;
+        this.add_axes.parent = this;
+        this.update.parent = this;
+        this.update_axes.parent = this;
+        this.interpret_context.parent = this;
+        this.browser_context_template.parent = this;
+        this.add_top_regions.parent = this;
+        this.clear_all.parent = this;
+        this.clip_bounding_box_by_graph.parent = this;
+        this.push_region_obj.parent = this;
+        this.update_arrow_peak.parent = this;
+        this.arrange_region_labels.parent = this;
+        this.duplicate_graph_check.parent = this;
+        this.alt_x_axis.parent = this;
+        this.remove_top_regions.parent = this;
+        this.find_my_index.parent = this;
+        this.recalculate_peaks_totals.parent = this;
+        this.do_linear_regression.parent = this;
+        this.remove_graph.parent = this;
+        this.graph_status_obj.parent = this;
+        this.generate_curves.parent = this;
 
         delete this.init;
         return this;
@@ -1943,7 +2256,12 @@ $(document).ready(function() {
         "use strict";
         COVID_SANDBOX_NS.arrange_region_labels();
     });
-
+    
+     //Event handler for clip bounding box
+     $('#gen_curves').click(function() {
+        "use strict";
+        COVID_SANDBOX_NS.generate_curves(); 
+    });
 
     //Event handler for clip bounding box
     $('#clip_bound_button').click(function() {

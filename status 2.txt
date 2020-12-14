@@ -1,0 +1,3 @@
+need to give later values in peak's y value more priority with cost function
+
+perhaps compare with version before that (r^2 value)
