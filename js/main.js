@@ -586,7 +586,9 @@ const COVID_SANDBOX_NS = {
         var P = this.generated_curves[curve_index].Parms;
         var top = this.generated_curves[curve_index].top ;
         var riser = this.generated_curves[curve_index].riser;
-        var base = xi;
+        if (!this.generated_curves[curve_index].x_offset) this.generated_curves[curve_index].x_offset = 0;
+        var x_off = this.generated_curves[curve_index].x_offset;
+        var base = xi - x_off + 40;
         // if (base < 0) {
         //     var first_order = 1 - P[0]*Math.abs(base)**Math.abs(P[1]);
         // }
@@ -608,16 +610,18 @@ const COVID_SANDBOX_NS = {
 
     logistic_regression_with_decay: function(index, _start, _end, riser) {
 
-        // var context = this.graphs[index].columns.affected_column;
+        if (this.filled_graphs) this.remove_tidy_endpoints(this.graphs[index].graph_data_obj);
         var y_data = this.graphs[index].graph_data_obj.dataY;
         var x_data = this.graphs[index].graph_data_obj.dataX;
 
         if (!_end) _end = Infinity;
         var y = y_data.slice(_start,_end);
         var x = x_data.slice(_start,_end);
-
+        var x_off = x[0];
+        var x = x.map( element => element - x_off + 40);
+        inform(x);
         var top = Math.max(...y);
-        // inform(top);
+        inform(top);
         // top = top + top / 10
         // var riser = Math.min(...y);
         if (!riser) riser = 0;
@@ -649,19 +653,11 @@ const COVID_SANDBOX_NS = {
                 // return (top + riser) / (1 + P[0]*(xi + x_off)**Math.abs(P[1])) - (top + riser) / (1 + P[2]*P[3]**-(xi + x_off)) + riser;
             });
         };
-
-        // fun = function(x,P){return x.map(function(xi){return (P[0]+1/(1/(P[1]*(xi-P[2]))+1/P[3]))})}
         
-        // inform(fun(21, [.210868, 0, .17, .88]));
-        
-        // x2 = [10, 30, 50];
-        // y2 = [.001, .08, .001];
-
-        // Parms2 = fminsearch(fun, [.2,.000001, .17, .88], x2, y2, {maxIter:5000,display:false});
-
-        // inform(Parms2);
-        
-        Parms = fminsearch(fun, [.2,.000001, .17, .88], x, y, {maxIter:5000,display:false});
+        Parms = fminsearch(fun, [.2,.000001, -.17, .88], x, y, {maxIter:5000,display:false});
+        // Parms = fminsearch(fun, [.2,.000001, -1*10**6, .88], x, y, {maxIter:5000,display:false});
+        // Parms = fminsearch(fun, [400,-1.5, -7*10**6, 3], x, y, {maxIter:5000,display:false});
+        //  Parms = fminsearch(fun, [200,.0001, -7*10**3, 1.5], x, y, {maxIter:5000,display:false});
         // Parms = fminsearch(fun, [.0000001, 6, 400000, 5], x, y, {maxIter:5000,display:false}); // Terrible
         //Parms = fminsearch(fun, [.000001, 3, 35, .75], x, y, {maxIter:5000,display:false});
 
@@ -675,6 +671,7 @@ const COVID_SANDBOX_NS = {
         this.generated_curves[_curves_index].riser = riser;
         this.generated_curves[_curves_index].start = _start;
         this.generated_curves[_curves_index].end = _end;
+        this.generated_curves[_curves_index].x_offset = x_off;
   
         
         this.generated_curves[_curves_index].curve = this.board.create('functiongraph',
@@ -683,6 +680,8 @@ const COVID_SANDBOX_NS = {
                 COVID_SANDBOX_NS.generated_curves[_curves_index].end // b < x (right bounds)
             ]
         );
+
+        if (this.filled_graphs) this.add_tidy_endpoints(this.graphs[index].graph_data_obj);
     },
 
     generate_curves: function() {
@@ -706,152 +705,75 @@ const COVID_SANDBOX_NS = {
 
 
 
-        //My pseudo code for peak / valley finding:
+        //My 2.0 pseudo code for peak / valley finding:
+        // Easy: look for runs where slope is 30 degrees counterclockwise from prior run, then close off prior run and start new one.
         
-        // minimum x-threshold in days, say 21 days.
-        // y-threshold in relation to top y value, say top y value / 30
-
-        //Need to add plateau tracking
-
-        // iterate over x
-        // track lowest y > 0 (track x-start for this y position) (find first nonzero lowest peak's x value)
-        // track highest y (track x position for this y position)
-        // track lowest y since highest y (track x-stop for this y position)
-        // wait until an overall slope over the last x-threshold / 2 is negative
-        // -> store x-start, store highest y's x position (PEAK)
-        // wait until an overall slope over the last x-threshold / 2 is positive
-        // -> store x-stop with prior entry (VALLEY), store x-start with next entry
-        // repeat
-        // Implementation:
         
 
 
         // var plateau_threshold = this.get_max_graph_affected(_index) / plateau_threshold;
-        var x_off = 0; //Offset on x-axis
         var _index = this.graphs.length-1;
         var _data = this.graphs[_index].graph_data_obj;
         var _data_length = _data.dataX.length;
 
-        var threshold = 10; //Minimum days to detect a valley / peak
-        var plateau_threshold = .0001; //Maximum pos/neg slope for algo to track a plateau
-        // var plateau_threshold = .001; //Maximum pos/neg slope for algo to track a plateau
-        var plateau_x_start = _data_length;
-        var running_plateau = false;
+        var threshold = 21; //Minimum days to detect a valley / peak
+        var angle_threshold = 30; //Minimum angle change to close out prior run
+        angle_threshold = (angle_threshold * Math.PI/180)/1500; //Reduce by a factor of a 3000 to make up for x / y axis scales, Convert to radians
+        //! need to find graph x and graph y scales to set the divisor better ^^^
+        inform(angle_threshold);
+        var run_slope = 0;
 
         var peaks_and_valleys = [];
-        peaks_and_valleys.push({})
-
-
-        var low_y = 0 // valley start y value
-        var valley_start = 0; // valley start x value
-        var high_y = 0;
-        var high_x = 0;
-
-        var low_y2 = 0; // after peak low y
-        var valley2_start = 0;
-        var slope = 0;
-
+        var run_start_x = 0;
         var peak_index = 0;
+
         for (var x = 0; x < _data.dataX.length; x++) {
             var current_y = _data.dataY[x];
             
-            if (current_y > 0 && low_y == 0) { //Track first valley
-                low_y = current_y;
-                valley_start = x;
-            }
-            
-            if (current_y >= high_y) { //Track peak
-                high_x = x;
-                high_y = current_y;
-                low_y2 = current_y;
+            if (current_y > 0 && run_start_x == 0) { //Begin Runs
+                run_start_x = x;
+                x += threshold; // skip ahead
             }
 
-            if (x > 0) slope = current_y - _data.dataY[x-1]; // Check our current slope
-            if (Math.abs(slope) < plateau_threshold*4) { //If it's in plateau threshold..
-                if (plateau_x_start == _data_length) { //Are we starting a new plateau? If so..
-                    plateau_x_start = x; //Track plateau
-                    running_plateau = true; //(For telling if we reach an end of plateau)
-                }
-                else {
-                    var lin_reg = this.do_linear_regression_graph(_index, plateau_x_start, x); //We have a running plateau already, lets check overall slope for it
-                    inform(lin_reg.slope);
-                    if (Math.abs(lin_reg.slope)  > plateau_threshold*4) {
-                        // plateau_x_start = _data_length; //Slope magnitude is too high lets reset plateau tracking
-                        running_plateau = false;
-                        inform("Plateau reset at: " + x);
-                    }
-                }
-                // inform(this.do_linear_regression_graph(_index, plateau_x_start, x));
-            }
-            else running_plateau = false;
+            if (x - run_start_x >= threshold || x == _data_length-1) {
+                run_slope = this.do_linear_regression_graph(_index, x - threshold, x); // find slope of last (x - threshold) run
+                var x2 = x;
+                var x2_length = (x2 + threshold < _data_length) ? x2 + threshold : _data_length
+                var lin_reg = this.do_linear_regression_graph(_index, x2, x2_length);
+                // inform(Math.atan(lin_reg.slope - run_slope.slope));
+                if (Math.atan(lin_reg.slope - run_slope.slope) >= angle_threshold || x == _data_length-1) { //We're past ~30 degrees from prior slope so close off that section and start over
+                    peaks_and_valleys.push({})
+                    peaks_and_valleys[peak_index].start = run_start_x;
+                    if (x == _data_length-1) peaks_and_valleys[peak_index].end = Infinity;
+                    else peaks_and_valleys[peak_index].end = x;
 
-            if (current_y <= low_y2) { //Track potential next valley
-                low_y2 = current_y;
-                valley2_start = x;
-            }
-            // PEAK & VALLEY START FINDER
-            // If the distance for x has surpassed a peak or plateau marker by threshold and we have a peak (or if we're just at the end of the dataset)...
-            if (((x - high_x >= threshold / 2 || x - plateau_x_start >= threshold) && high_x > 0) || x == _data.dataX.length-1) { //Look at registering the first valley and peak
-                //var lin_reg = this.do_linear_regression_graph(_index, high_x, x);
-                // inform(lin_reg);
-                // if (lin_reg.slope < 0) { // Register prior valley and current peak
-                    peaks_and_valleys[peak_index].valley_start = valley_start;
-                    peaks_and_valleys[peak_index].peak_x = high_x;
+                    if (_data.dataY[peaks_and_valleys[peak_index].start] < _data.dataY[x]) peaks_and_valleys[peak_index].riser = current_y;
+                    else peaks_and_valleys[peak_index].riser = _data.dataY[peaks_and_valleys[peak_index].start];
                     
-                // }
-            }
-
-            // STOP FINDER (VALLEY END)
-            // If the distance for our 2nd valley is beyond threshold and there's no running plateau, or if the distance for our plateau has ended and we have a peak, close off peak/plateau run...
-            if (((x - valley2_start >= threshold / 2 && x - plateau_x_start < threshold) || (x - plateau_x_start >= threshold && !running_plateau)) && high_x > 0) { //Look at closing out the registered first valley and peak with the second valley and restarting
-                var lin_reg = this.do_linear_regression_graph(_index, valley2_start, x);
-                // inform(lin_reg);
-                if (lin_reg.slope > 0 && !peaks_and_valleys[peak_index].valley_end) {
-                    peaks_and_valleys[peak_index].valley_end = valley2_start;
-                   
-                    if (_data.dataY[peaks_and_valleys[peak_index].valley_start] < _data.dataY[valley2_start]) peaks_and_valleys[peak_index].riser = current_y;
-                    else peaks_and_valleys[peak_index].riser = _data.dataY[peaks_and_valleys[peak_index].valley_start];
-                    low_y = low_y2;
-                    valley_start = valley2_start;
-
-                    low_y2 = 0; 
-                    valley2_start = 0;
-                    high_y = 0;
-                    high_x = 0;
-
-                    plateau_x_start = _data_length;
-                    running_plateau = false;
-
                     peak_index ++;
-                    peaks_and_valleys.push({});
-                }
-
-                if (!running_plateau) plateau_x_start = _data_length;
-
-            }
-            
-
-        }
-
-        if (!peaks_and_valleys[peak_index].valley_end) { //This is for the case of the last peak
-            // peaks_and_valleys[peak_index-1].valley_start = peaks_and_valleys[peak_index-1].valley_end;
-            // peaks_and_valleys[peak_index].valley_end = Infinity;
-            peaks_and_valleys[peak_index].valley_end = Infinity;
-            if (_data.dataY[peaks_and_valleys[peak_index].valley_start] < _data.dataY[valley2_start]) peaks_and_valleys[peak_index].riser = current_y;
-            else peaks_and_valleys[peak_index].riser = _data.dataY[peaks_and_valleys[peak_index].valley_start];
-
-            // var peak_range = peaks_and_valleys[peak_index].peak_x * 2
+                    run_start_x = x;
+                    x = (x + threshold > _data_length) ? x : x + threshold;
+                                // var peak_range = peaks_and_valleys[peak_index].peak_x * 2
             // peaks_and_valleys.push({valley_start: peaks_and_valleys[peak_index].valley_start, 
             //                         peak_x: peak_range,
             //                         valley_end: peaks_and_valleys[peak_index].valley_end, 
             //                         riser: peaks_and_valleys[peak_index].riser
             //                     });
+                }
+
+            }
+
         }
-        if (!peaks_and_valleys[peak_index].peak_x) peaks_and_valleys.pop(); // If we don't have a peak for the last index remove the whole index
+      
+        // if (!peaks_and_valleys[peak_index].peak_x) peaks_and_valleys.pop(); // If we don't have a peak for the last index remove the whole index
 
         inform(peaks_and_valleys);
+        if (peak_index == 0) {
+            alert("No curves found!");
+            return;
+        }
 
-        peaks_and_valleys.forEach(element => this.logistic_regression_with_decay(_index, element.valley_start, element.valley_end, element.riser));
+        peaks_and_valleys.forEach(element => this.logistic_regression_with_decay(_index, element.start, element.end, element.riser));
 
         
         return;
