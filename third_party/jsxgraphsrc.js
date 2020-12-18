@@ -39437,7 +39437,7 @@ define('base/curve',[
                 pnt.setCoordinates(Const.COORDS_BY_USER, [this.X(td, true), this.Y(td, true)], false);
                 return [pnt.scrCoords, td];
             } else {
-                console.log("TODO _findStartPoint", this.Y.toString(), tc);
+                //console.log("TODO _findStartPoint", this.Y.toString(), tc);
                 pnt.setCoordinates(Const.COORDS_BY_USER, [this.X(ta, true), this.Y(ta, true)], false);
                 return [pnt.scrCoords, ta];
             }
