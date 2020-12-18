@@ -14,18 +14,20 @@ fminsearch=function(fun,Parm0,x,y,Opt){// fun = function(x,Parm)
 	if(!Opt){Opt={}};
 	if(!Opt.maxIter){Opt.maxIter=1000};
 	if(!Opt.step){// initial step is 1/100 of initial value (remember not to use zero in Parm0)
-		Opt.step=Parm0.map(function(p){return p/2});
-		inform(Opt.step);
+		Opt.step=Parm0.map(function(p){return p/100});
+		// inform(Opt.step);
 		Opt.step=Opt.step.map(function(si){if(si==0){return .0001}else{ return si}}); // convert null steps into 1's //Updated to .0001
 	};
 	if(typeof(Opt.display)=='undefined'){Opt.display=true};
-	if(!Opt.objFun) {
+
+
+	if(!Opt.objFun) { //Cost function
 		Opt.objFun=function(y, yp) {
 			return y.map( function(yi, i) {
 				// inform(yi, yp);
 				return Math.pow((yi - yp[i]), 2)
 				}).reduce(function(a,b) {
-					return a+b;
+					return a+b; //changes array into one summation value
 				});
 		};
 	} //SSD
@@ -49,18 +51,18 @@ fminsearch=function(fun,Parm0,x,y,Opt){// fun = function(x,Parm)
 			P1=cloneVector(P0);
 			P1[j]+=step[j];
 			// inform(funParm(P0), funParm(P1));
-			if (funParm(P0) != funParm(P0)) {
-				console.log("NaN!");
-				return NaN;
-			}
+			// if (funParm(P0) != funParm(P0)) {
+			// 	console.log("NaN!");
+			// 	return NaN;
+			// }
 			// else console.log("No NaN!!");
-			if(funParm(P1)<funParm(P0)){ // if parm value going in the righ direction
+			if(funParm(P1)<funParm(P0)){ // if parm value going in the right direction
 				step[j]=1.2*step[j]; // then go a little faster
 				P0=cloneVector(P1);
 				// console.log("getting closer");
 			}
 			else{
-				step[j]=-(0.5*step[j]); // otherwiese reverse and go slower
+				step[j]=-(0.5*step[j]); // otherwise reverse and go slower
 				// console.log(step[j]);
 			}	
 		}
