@@ -22,12 +22,6 @@ catch (err){
     alert("Logging unavailable, Error: " + err);
 }
 
-// Array Remove - By John Resig (MIT Licensed)
-Array.prototype.rem = function(from, to) {
-    var rest = this.slice((to || from) + 1 || this.length);
-    this.length = from < 0 ? this.length + from : from;
-    return this.push.apply(this, rest);
-};
 
 // check if object is a string, Orwellophile (stackoverflow) 
 function isString(x) {
@@ -57,7 +51,7 @@ const COVID_SANDBOX_NS = {
 
     logistic_gap: 0, //x buffer we use for normalizing the machine learning to improve logistic regression functions 
     days_threshold: 30, //minimum section length for linear regression comparisons
-    angle_threshold: 45, //angle in degrees to start distinguishing for wave separation logic
+    angle_threshold: 30, //angle in degrees to start distinguishing for wave separation logic
     predicted_days: 21, //minimum run length ahead of current run to compare via linear regression
     minimum_partial: 1, //minimum length of a rise or decay run to train our subsequent logistic regression algorithm
     logistic_parameters: [2**21, 1, 2**21, 1], //default base exponentiation multipler (rise), exponent (rise), base multipler (decay), exponent (decay) 
@@ -590,6 +584,38 @@ const COVID_SANDBOX_NS = {
         });
     },
 
+
+    //Removes scientific notation
+    number_to_string: function (num) {
+        let numStr = String(num);
+
+        if (Math.abs(num) < 1.0)
+        {
+            let e = parseInt(num.toString().split('e-')[1]);
+            if (e)
+            {
+                let negative = num < 0;
+                if (negative) num *= -1
+                num *= Math.pow(10, e - 1);
+                numStr = '0.' + (new Array(e)).join('0') + num.toString().substring(2);
+                if (negative) numStr = "-" + numStr;
+            }
+        }
+        else
+        {
+            let e = parseInt(num.toString().split('+')[1]);
+            if (e > 20)
+            {
+                e -= 20;
+                num /= Math.pow(10, e);
+                numStr = num.toString() + (new Array(e + 1)).join('0');
+            }
+        }
+
+        return numStr;
+    },
+
+    // Base logistic regression equation function /w decay 
     fun_base: function(xi, curve_index) {
         var P = this.generated_curves[curve_index].Parms;
         var top = this.generated_curves[curve_index].top ;
@@ -616,23 +642,28 @@ const COVID_SANDBOX_NS = {
         // return (top + riser) / (1 + P[0]*(xi + x_off)**Math.abs(P[1])) - (top + riser) / (1 + P[2]*P[3]**-(xi + x_off)) + riser;
     },
 
-    logistic_regression_with_decay: function(index, _start, _end) {
+    //The approach is to use a cost function to do the regression
+    //We divide the segment into before peak / after peak, regress those, and use those as initial values for the full function regression
+    logistic_regression_with_decay: function(index, _start, _end, _curve) {
 
         
         var y_data = this.graphs[index].graph_data_obj.dataY;
         var x_data = this.graphs[index].graph_data_obj.dataX;
 
-        // if (!_end) _end = Infinity; //needed even with prior logic
         var y = y_data.slice(_start,_end);
         var x = x_data.slice(_start,_end);
 
-        //Next 2 lines are to normalize the offset to help logistic exponent regression
+        //Next 2 lines are to normalize the offset to help logistic exponent regression because exponetial-esque regression has a tough time with high x values
         var x_off = x[0];
         var x = x.map( element => element - x_off + this.logistic_gap);
 
         var top = Math.max(...y);
         // if (_end == Infinity) top *= 2; //experimental
-        if (!riser) var riser = Math.min(...y);
+        if (this.filled_graphs) { //completely, 100%, have no idea, why this is needed for filled graphs -_-
+            y.splice(y.length-1, 1);
+        }
+        var riser = Math.min(...y);
+        // inform(riser, y);
 
         var fun = function(_x,P) { // Logistic rise and decay used for regression
 
@@ -649,7 +680,7 @@ const COVID_SANDBOX_NS = {
             });
         };
 
-        var rise_fun = function(_x,P) { //Only the rise or decay
+        var rise_fun = function(_x,P) { //Only the rise before the peak
             return [].map.call(_x, function(xi) {
                 var base = xi;
 
@@ -661,7 +692,7 @@ const COVID_SANDBOX_NS = {
             });
         };
 
-        var decay_fun = function(_x,P) { //Only the rise or decay
+        var decay_fun = function(_x,P) { //Only the decay after the peak
             return [].map.call(_x, function(xi) {
                 var base = xi;
 
@@ -688,7 +719,7 @@ const COVID_SANDBOX_NS = {
 
         peak = highest_peak(y);
 
-        //Attempt to add bias to start, peaks, and ends
+        //Attempt to add bias to start, peaks, and ends just to see if it improved the regression (it didn't)
         // var _length = Math.floor(y.length / 3 +1);
         // var y_add_on = [...Array(_length)].fill(y[0]);
         // var x_add_on = [...Array(_length)].fill(x[0]);
@@ -749,7 +780,7 @@ const COVID_SANDBOX_NS = {
         
         inform("Defaults:", this.logistic_parameters);
         inform("Adjusted:", Parms, [top, riser]);
-        Parms = fminsearch(fun, Parms, x, y, {maxIter:200,display:false});
+        Parms = fminsearch(fun, Parms, x, y, {maxIter:20,display:false});
         // Parms = fminsearch(fun, this.logistic_parameters, x, y, {maxIter:2000,display:false});
         inform("Adjusted Twice:", Parms, [top, riser]);
         // Parms = fminsearch(fun, Parms, x, y, {maxIter:2000,display:false});
@@ -774,9 +805,19 @@ const COVID_SANDBOX_NS = {
                 dash: 5
             }
         );
+        
+        var str = "Function for Curve " + _curve + ":\n";
+        top = this.number_to_string(top);
+        riser = this.number_to_string(riser);
+        _end = this.number_to_string(_end);
+        Parms = Parms.map(element => COVID_SANDBOX_NS.number_to_string(element)); //consider changing to forEach instead of creating new array
+        str += "y_" + _curve + " = {x<"+_end+"} (" + top + "+" + riser + ")/(1+" + Parms[0] + "*(x-"+x_off+")^{"+ Parms[1] + "})-" + "(" + top + "+" + riser + ")/(1+" + Parms[2] + "*(x-"+x_off+")^{"+ Parms[3] + "})+" + riser;  
+        var divider_str = "\n*****************************\n\n*****************************\n";
+        $('#console').val(str + divider_str + $('#console').val());
 
     },
 
+    //Determines peaks and valleys, then does the logistic regression for each segment
     generate_curves: function() {
        
         //My 2.0 pseudo code for peak / valley finding:
@@ -784,7 +825,9 @@ const COVID_SANDBOX_NS = {
         
         var _index = this.graphs.length-1;
         
-        if (this.filled_graphs) this.remove_tidy_endpoints(this.graphs[_index].graph_data_obj);
+        inform(this.graphs[_index].graph_data_obj.dataY);
+        if (this.filled_graphs) this.graphs[_index].graph_data_obj = this.remove_tidy_endpoints(this.graphs[_index].graph_data_obj);
+        inform(this.graphs[_index].graph_data_obj.dataY);
 
         // var plateau_threshold = this.get_max_graph_affected(_index) / plateau_threshold;
         var _data = this.graphs[_index].graph_data_obj;
@@ -830,7 +873,7 @@ const COVID_SANDBOX_NS = {
                     peaks_and_valleys[peak_index].start = run_start_x;
                     // if (x == _data_length-1 || x == _data_length) peaks_and_valleys[peak_index].end = Infinity;
                     // else peaks_and_valleys[peak_index].end = x;
-                    if (_data_length - x < 7 ) { //if we're a week from the end just call it the last curve and break
+                    if (_data_length - x < this.cutoff ) { //if we're a (14 days) from the end just call it the last curve and break
                         peaks_and_valleys[peak_index].end = Infinity;
                         break;
                     }
@@ -861,11 +904,14 @@ const COVID_SANDBOX_NS = {
 
         inform(peaks_and_valleys);
         if (peak_index == 0) {
-            alert("No curves found! Have you tried disabling moving day average?");
+            alert("No curves found! Have you tried reducing or disabling moving day average?");
             return;
         }
 
-        peaks_and_valleys.forEach(function(element, i) {inform("-------Curve " + (i+1)); COVID_SANDBOX_NS.logistic_regression_with_decay(_index, element.start, element.end, element.riser)});
+        peaks_and_valleys.forEach(function(element, i) {
+            inform("-------Curve " + (i+1));
+            COVID_SANDBOX_NS.logistic_regression_with_decay(_index, element.start, element.end, i+1)
+        });
 
         
         return;
@@ -1422,8 +1468,8 @@ const COVID_SANDBOX_NS = {
             var _total = 0;
             // var _context = this.interpret_context(this.regions_of_interest[i].context);
             if (_style == "Fastest Rising") {
-                var _linreg = do_linear_regression_graph(i, this.days);
-                _graphs.list.push({linreg: _linreg, index: i});
+                var _linreg = this.do_linear_regression_graph(i, this.days);
+                _graphs_list.push({linreg: _linreg, index: i});
             }
             else {
                 var _context = this.regions_of_interest[i].columns.affected_column;
@@ -1780,25 +1826,29 @@ const COVID_SANDBOX_NS = {
     //This function is just to make the fillcolor look correct/good
     add_tidy_endpoints: function(graph) {
         if (!this.filled_graphs) {
-            graph.fillColor = 'none';
+            // graph.fillColor = 'none';
             return; //If checkbox unchecked return
         }
-        graph.filled = this.filled_graphs;
-        graph.dataX.splice(0, 0, 0); //insert 0 x & value at start of array
+        graph.dataX.splice(0, 0, 0); //insert 0 at start of array
+        graph.dataX.push(graph.dataX.length-1); //append a duplicate x value at the end of our data 
+
         graph.dataY.splice(0, 0, 0); 
-        graph.dataX.push(graph.dataX.length-2); //append a duplicate x value and a 0 y value at the end of our data 
         graph.dataY.push(0);
+        // inform(graph.dataY);
         // return graph;       
     },
 
     //This function is to remove the added tidy points
     remove_tidy_endpoints: function(graph) {
-        if (!graph.filled) return; //if graph doesn't have endpoints return
-        graph.dataX.rem(0);
-        graph.dataX.rem(-1); 
-        graph.dataY.rem(0);
-        graph.dataY.rem(-1); 
-        // return graph;       
+        if (!this.filled_graphs) return; //if graph doesn't have endpoints return
+        graph.dataX.splice(0,1);
+        graph.dataX.splice(graph.dataX.length-1,1); 
+        
+        // inform(graph.dataY);
+        graph.dataY.splice(0,1);
+        graph.dataY.splice(graph.dataY.length-1,1);
+        // inform(graph.dataY);
+        return graph;       
     },
 
     fill_regions_dropdown: function(_data) {
@@ -1967,6 +2017,9 @@ const COVID_SANDBOX_NS = {
         this.remove_graph.parent = this;
         this.graph_status_obj.parent = this;
         this.generate_curves.parent = this;
+        this.logistic_regression_with_decay.parent = this;
+        this.fun_base.parent = this;
+        this.number_to_string.parent = this;
 
         delete this.init;
         return this;
@@ -2219,7 +2272,7 @@ $(document).ready(function() {
     });
     
 
-    //Event handler for top regions add button
+    //Event handler for region hide button
     $('#hide_button').click(function() {
         "use strict";
         COVID_SANDBOX_NS.remove_graph($( "#regions_dropdown option:selected" ).text());
@@ -2242,7 +2295,7 @@ $(document).ready(function() {
     //Event handler for top regions remove button
     $('#remove_top_regions_button').click(function() {
         "use strict";
-        COVID_SANDBOX_NS.remove_top_regions($('#top_regions').val(), $('#top_regions_days').val());
+        COVID_SANDBOX_NS.remove_top_regions($('#top_regions').val(), $('#top_regions_days').val(), $( "#slope_dropdown option:selected" ).text());
         // COVID_SANDBOX_NS.clip_bounding_box_by_graph(); 
         // COVID_SANDBOX_NS.arrange_region_labels(-1);
     });
