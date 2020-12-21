@@ -28,30 +28,11 @@ function isString(x) {
     return Object.prototype.toString.call(x) === "[object String]"
 }
 
-JXG.joinCurves = function(board, parents, attributes) {
-    var cu1 = parents[0], 
-        cu2 = parents[1],
-        attr = JXG.copyAttributes(attributes, board.options, 'curve'),
-        c = board.create('curve', [[0], [0]], attr);
-    inform(cu1,cu2);
-    c.updateDataArray = function() {
-        // The two paths have to be connected
-        this.dataX = cu1.dataX.slice(0,-1).concat(cu2.dataX);
-        this.dataY = cu1.dataY.slice(0,-1).concat(cu2.dataY);
-        if (this.dataX.length<4) {
-            this.bezierDegree = 1;
-        } else {
-            this.bezierDegree = cu1.bezierDegree;
-        }
-    };
-    c.prepareUpdate().update().updateRenderer();
-    return c;
-};
 
 //--------------------------------------------------------------------------------------------
 
 //Our namespace to prevent interferring with other libraries or the window namespace
-const COVID_SANDBOX_NS = {
+const SPICY_COVID_NS = {
 
     point: function(x,y){this.x=x; this.y=y;},
 
@@ -74,6 +55,7 @@ const COVID_SANDBOX_NS = {
     minimum_partial: 1, //minimum length of a rise or decay run to train our subsequent logistic regression algorithm
     logistic_parameters: [2**21, 1, 2**21, 1], //default base exponentiation multipler (rise), exponent (rise), base multipler (decay), exponent (decay) 
     crop: 14, //days to ignore at end of curve generation because of delayed reporting <- Needs implementation
+    prediction_length: 30 * 3, //Can also set to Infinity
 
     generated_curves: [],
 
@@ -117,7 +99,7 @@ const COVID_SANDBOX_NS = {
         this.color = _color; //Color of JSXGraph region label
         this.arrow_peak = _arrow_peak; //point arrow points to
         this.context = _context;
-        this.split_context = COVID_SANDBOX_NS.interpret_context(_context);
+        this.split_context = SPICY_COVID_NS.interpret_context(_context);
         this.max = _max;
         this.filled = this.filled_graphs;
     },
@@ -139,12 +121,12 @@ const COVID_SANDBOX_NS = {
 
     },
 
-    generated_curve_colors: {
-        0:'#7fd483', //light gr
-        1:'#5ead61', //medium gr
-        2:'#327535', //dark gr
-        3:'#174d19', //darker gr
-    },
+    generated_curve_colors: [
+        '#7fd483', //light gr
+        '#5ead61', //medium gr
+        '#327535', //dark gr
+        '#174d19', //darker gr
+    ],
 
     //Object for constructing the column name strings for the different datasets.
     header_obj: function(_filename) {
@@ -395,7 +377,7 @@ const COVID_SANDBOX_NS = {
         // var xAxPt1 = this.board.create('point', [1,0], {
         //     needsRegularUpdate: false, visible: false});
 
-        COVID_SANDBOX_NS.xaxis = this.board.create('axis', 
+        SPICY_COVID_NS.xaxis = this.board.create('axis', 
             [[0,0],[1,0]], {
             needsRegularUpdate: false,
             majorHeight: 15,
@@ -404,7 +386,7 @@ const COVID_SANDBOX_NS = {
             });
             // inform(this.xaxis);
 
-        COVID_SANDBOX_NS.abbv_xaxis = this.board.create('axis', 
+        SPICY_COVID_NS.abbv_xaxis = this.board.create('axis', 
             [[0,0],[1,0]], {
             needsRegularUpdate: false,
             majorHeight: 15,
@@ -506,11 +488,11 @@ const COVID_SANDBOX_NS = {
         this.board.fullUpdate(); // full update is required
         var coords=[];
         var xPt0 = function(offset) {
-            coords = new JXG.Coords(JXG.COORDS_BY_SCREEN, [0, offset], COVID_SANDBOX_NS.board);	
+            coords = new JXG.Coords(JXG.COORDS_BY_SCREEN, [0, offset], SPICY_COVID_NS.board);	
             return coords.usrCoords;
         }
         var xPt1 = function(offset) {
-            coords = new JXG.Coords(JXG.COORDS_BY_SCREEN, [COVID_SANDBOX_NS.board.canvasWidth, offset], COVID_SANDBOX_NS.board);
+            coords = new JXG.Coords(JXG.COORDS_BY_SCREEN, [SPICY_COVID_NS.board.canvasWidth, offset], SPICY_COVID_NS.board);
             return coords.usrCoords;
         }
         var yAxPt0 = this.board.create('point', [0,0], {
@@ -531,30 +513,30 @@ const COVID_SANDBOX_NS = {
         yaxis.defaultTicks.ticksFunction = function () { return yTicks; };
         this.board.fullUpdate();
         var yPt0 = function(offset) {
-            coords = new JXG.Coords(JXG.COORDS_BY_SCREEN, [offset,COVID_SANDBOX_NS.board.canvasHeight], COVID_SANDBOX_NS.board);
+            coords = new JXG.Coords(JXG.COORDS_BY_SCREEN, [offset,SPICY_COVID_NS.board.canvasHeight], SPICY_COVID_NS.board);
             return coords.usrCoords;
         }
         var yPt1 = function(offset) {
-            coords = new JXG.Coords(JXG.COORDS_BY_SCREEN, [offset,0], COVID_SANDBOX_NS.board);
+            coords = new JXG.Coords(JXG.COORDS_BY_SCREEN, [offset,0], SPICY_COVID_NS.board);
             return coords.usrCoords;
         }
         var setTicks = function() {
-            bb = COVID_SANDBOX_NS.board.getBoundingBox();
+            bb = SPICY_COVID_NS.board.getBoundingBox();
             yTicksVal = Math.pow(10, Math.floor((Math.log(0.6*(bb[1]-bb[3])))/Math.LN10)); //changed from .6 to .006
             if( (bb[1]-bb[3])/yTicksVal > 5) {
               yTicks = yTicksVal;
             } else {
               yTicks = 0.5* yTicksVal;
             }
-            COVID_SANDBOX_NS.board.fullUpdate(); // full update is required
+            SPICY_COVID_NS.board.fullUpdate(); // full update is required
         }
         setTicks();
         var origPt = this.board.create('point', [0,0],{visible:false});
         this.board.on('boundingbox', function() {
-            bb = COVID_SANDBOX_NS.board.getBoundingBox();
-            mycoordsY = new JXG.Coords(JXG.COORDS_BY_USER, [0,origPt.Y()], COVID_SANDBOX_NS.board);
+            bb = SPICY_COVID_NS.board.getBoundingBox();
+            mycoordsY = new JXG.Coords(JXG.COORDS_BY_USER, [0,origPt.Y()], SPICY_COVID_NS.board);
             yPixels = mycoordsY.scrCoords[2];
-            mycoordsX = new JXG.Coords(JXG.COORDS_BY_USER, [0,origPt.X()], COVID_SANDBOX_NS.board);
+            mycoordsX = new JXG.Coords(JXG.COORDS_BY_USER, [0,origPt.X()], SPICY_COVID_NS.board);
             xPixels = mycoordsX.scrCoords[1];
 
             //Next section commented out because it slows down panning too much:
@@ -565,9 +547,9 @@ const COVID_SANDBOX_NS = {
             //     xaxis.point2.setAttribute({frozen: true});
             //     xaxis.setAttribute({strokeColor: '#111'});
             //     ticks.visProp.label.offset = [0,-20];
-            // } else if( yPixels > COVID_SANDBOX_NS.board.canvasHeight - 30) {
-            //     xAxPt0.moveTo (xPt0(COVID_SANDBOX_NS.board.canvasHeight -10),0); //-10
-            //     xAxPt1.moveTo (xPt1(COVID_SANDBOX_NS.board.canvasHeight - 10),0); //-10
+            // } else if( yPixels > SPICY_COVID_NS.board.canvasHeight - 30) {
+            //     xAxPt0.moveTo (xPt0(SPICY_COVID_NS.board.canvasHeight -10),0); //-10
+            //     xAxPt1.moveTo (xPt1(SPICY_COVID_NS.board.canvasHeight - 10),0); //-10
             //     xaxis.point1.setAttribute({frozen: true});
             //     xaxis.point2.setAttribute({frozen: true});
             //     xaxis.setAttribute({color: '#111'});
@@ -588,10 +570,10 @@ const COVID_SANDBOX_NS = {
                 yaxis.point2.setAttribute({frozen: true});
                 yaxis.setAttribute({strokeColor: '#111'});
                 yaxis.defaultTicks.visProp.label.offset = [7,0]; //7
-            } else if( xPixels > COVID_SANDBOX_NS.board.canvasWidth-30) {
+            } else if( xPixels > SPICY_COVID_NS.board.canvasWidth-30) {
 
-                yAxPt0.moveTo (yPt0(COVID_SANDBOX_NS.board.canvasWidth-25),0); //-5
-                yAxPt1.moveTo (yPt1(COVID_SANDBOX_NS.board.canvasWidth-25),0); //-5
+                yAxPt0.moveTo (yPt0(SPICY_COVID_NS.board.canvasWidth-25),0); //-5
+                yAxPt1.moveTo (yPt1(SPICY_COVID_NS.board.canvasWidth-25),0); //-5
                 yaxis.point1.setAttribute({frozen: true});
                 yaxis.point2.setAttribute({frozen: true});			
                 yaxis.setAttribute({strokeColor: '#111'});
@@ -609,6 +591,26 @@ const COVID_SANDBOX_NS = {
         });
     },
 
+    increase_brightness:function(hex, percent){
+        // strip the leading # if it's there
+        inform(hex);
+        hex = hex.replace(/^\s*#|\s*$/g, '');
+    
+        // convert 3 char codes --> 6, e.g. `E0F` --> `EE00FF`
+        if(hex.length == 3){
+            hex = hex.replace(/(.)/g, '$1$1');
+        }
+    
+        var r = parseInt(hex.substr(0, 2), 16),
+            g = parseInt(hex.substr(2, 2), 16),
+            b = parseInt(hex.substr(4, 2), 16);
+    
+        return '#' +
+           ((0|(1<<8) + r + (256 - r) * percent / 100).toString(16)).substr(1) +
+           ((0|(1<<8) + g + (256 - g) * percent / 100).toString(16)).substr(1) +
+           ((0|(1<<8) + b + (256 - b) * percent / 100).toString(16)).substr(1);
+    },
+    
 
     //Removes scientific notation
     number_to_string: function (num) {
@@ -641,13 +643,15 @@ const COVID_SANDBOX_NS = {
     },
 
     // Base logistic regression equation function /w decay 
-    fun_base: function(xi, curve_index) {
+    fun_base: function(xi, curve_index, multiplier) {
         var P = this.generated_curves[curve_index].Parms;
         var top = this.generated_curves[curve_index].top ;
         var riser = this.generated_curves[curve_index].riser;
         if (!this.generated_curves[curve_index].x_offset) this.generated_curves[curve_index].x_offset = 0;
         var x_off = this.generated_curves[curve_index].x_offset;
+
         var base = xi - x_off + this.logistic_gap;
+        var length = this.generated_curves[curve_index].length;
         // if (base < 0) {
         //     var first_order = 1 - P[0]*Math.abs(base)**Math.abs(P[1]);
         // }
@@ -662,7 +666,12 @@ const COVID_SANDBOX_NS = {
 
         // inform (test);
         if (first_order == NaN || second_order == NaN) return 0;
-        else var ret_value = (top + riser) / first_order - (top + riser) / second_order + riser;
+        else {
+            if (multiplier)
+                var ret_value = (top-riser) / first_order - (top-riser) / second_order + (((length - base) > 0) ? ((length - base) / (length) * riser) : 0);
+            else
+                var ret_value = (top-riser) / first_order - (top-riser) / second_order + riser;
+        } 
         return ret_value;
         // return (top + riser) / (1 + P[0]*(xi + x_off)**Math.abs(P[1])) - (top + riser) / (1 + P[2]*P[3]**-(xi + x_off)) + riser;
     },
@@ -674,7 +683,7 @@ const COVID_SANDBOX_NS = {
         var y_data = this.graphs[index].graph_data_obj.dataY;
         var x_data = this.graphs[index].graph_data_obj.dataX;
 
-        if (segment.multiplier) { //This is for the last curve
+        if (segment.multiplier) { //This is for the last "predictive" curves
             var y = y_data.slice(segment.start,segment.end-this.crop);
             var x = x_data.slice(segment.start,segment.end-this.crop);
             var top = Math.max(...y) * segment.multiplier;
@@ -687,56 +696,18 @@ const COVID_SANDBOX_NS = {
             var riser = Math.min(...y);
         }
 
+        // inform(y);
 
-        if (this.filled_graphs) { //completely, 100%, have no idea, why this is needed for filled graphs -_-
-            y.splice(y.length-1, 1);
-        }
+        // if (this.filled_graphs) { //completely, 100%, have no idea, why this is needed for filled graphs -_-
+        //     y.splice(y.length-1, 1);
+        // }
+
+        // inform(y);
 
         //Next 2 lines are to normalize the offset to help logistic exponent regression because exponential-esque regression has a tough time with high x values
         var x_off = x[0];
         var x = x.map( element => element - x_off + this.logistic_gap);
-        
-        // inform(riser, y);
-
-        var fun = function(_x,P) { // Logistic rise and decay used for regression
-
-            return [].map.call(_x, function(xi) {
-                var base = xi;
-
-                var first_order = 1 + P[0]*base**P[1];
-
-                var second_order =  1 + P[2]*base**P[3];
-
-                if (first_order == NaN || second_order == NaN) return 0;
-                else var ret_value = (top + riser) / first_order - (top + riser) / second_order + riser;
-                return ret_value;
-            });
-        };
-
-        var rise_fun = function(_x,P) { //Only the rise before the peak
-            return [].map.call(_x, function(xi) {
-                var base = xi;
-
-                var second_order =  1 + P[0]*base**P[1];
-
-                if (second_order == NaN) return 0;
-                else var ret_value = (top + riser) / second_order + riser;
-                return ret_value;
-            });
-        };
-
-        var decay_fun = function(_x,P) { //Only the decay after the peak
-            return [].map.call(_x, function(xi) {
-                var base = xi;
-
-                var second_order =  1 + P[0]*base**P[1];
-
-                if (second_order == NaN) return 0;
-                else var ret_value = top - ((top) / second_order);
-                return ret_value;
-            });
-        };
-
+        var length = x.length;
 
         var highest_peak = function (_data) {
             var _peak = {x:0,y:0};
@@ -751,6 +722,85 @@ const COVID_SANDBOX_NS = {
         }
 
         peak = highest_peak(y);
+        y_rise = y.slice(0, (peak.x+1<y.length) ? peak.x+1 : y.length);
+        x_rise = x.slice(0, (peak.x+1<x.length) ? peak.x+1 : x.length);
+
+        y_decay = y.slice(peak.x);
+        x_decay = x.slice(peak.x);
+
+        if (segment.multiplier) { //look at slope, top, and riser again because now we have peak location
+            segment.direction = this.do_linear_regression_graph(index, peak.x+x_off, x.length+x_off);
+            if (y_decay.length < this.crop) { //the end curve is so close to the end of the dataset, just assume its positive.
+                segment.direction.slope = 1;
+            }
+            else if (segment.direction.slope < 0) { //We have an overall negative slope
+                // riser /= segment.multiplier;
+                length *= segment.multiplier;
+                top = Math.max(...y);
+            }
+            
+        }
+        
+        // inform(riser, y);
+        if (segment.multiplier) {
+            var fun = function(_x,P) { // Logistic rise and decay used for regression
+                return [].map.call(_x, function(xi) {
+                    var base = xi;
+
+                    var first_order = 1 + P[0]*base**P[1];
+
+                    var second_order =  1 + P[2]*base**P[3];
+
+                    if (first_order == NaN || second_order == NaN) return 0;
+                    else var ret_value = (top-riser) / first_order - (top-riser) / second_order + (((length - xi) > 0) ? ((length - xi) / (length) * riser) : 0);
+                    return ret_value;
+                });
+            };
+        }
+        else {
+            var fun = function(_x,P) { // Logistic rise and decay used for regression
+                return [].map.call(_x, function(xi) {
+                    var base = xi;
+
+                    var first_order = 1 + P[0]*base**P[1];
+
+                    var second_order =  1 + P[2]*base**P[3];
+
+                    if (first_order == NaN || second_order == NaN) return 0;
+                    else var ret_value = (top-riser) / first_order - (top-riser) / second_order +  riser;
+                    return ret_value;
+                });
+            };
+        }
+
+        var rise_fun = function(_x,P) { //Only the rise before the peak
+            return [].map.call(_x, function(xi) {
+                var base = xi;
+
+                var second_order =  1 + P[0]*base**P[1];
+
+                if (second_order == NaN) return 0;
+                else var ret_value = (top-riser) / second_order + riser;
+                return ret_value;
+            });
+        };
+
+        var decay_fun = function(_x,P) { //Only the decay after the peak
+            return [].map.call(_x, function(xi) {
+                var base = xi;
+
+                var second_order =  1 + P[0]*base**P[1];
+
+                if (second_order == NaN) return 0;
+                else var ret_value = top - (top / second_order); //not including the riser here drastically improves the decay end of the curves
+                return ret_value;
+            });
+        };
+
+
+
+
+
 
         //Attempt to add bias to start, peaks, and ends just to see if it improved the regression (it didn't)
         // var _length = Math.floor(y.length / 3 +1);
@@ -774,12 +824,8 @@ const COVID_SANDBOX_NS = {
         // y = y.concat(y_add_on);
         // x = x.concat(x_add_on);
         // inform(x,y);
+        var graph_color = this.graphs[this.graphs.length-1].graph_data_obj.getAttribute("strokeColor");
 
-        y_rise = y.slice(0, (peak.x+1<y.length) ? peak.x+1 : y.length);
-        x_rise = x.slice(0, (peak.x+1<x.length) ? peak.x+1 : x.length);
-
-        y_decay = y.slice(peak.x);
-        x_decay = x.slice(peak.x);
         // inform(y_decay[0], y_rise[x_rise.length-1]);
         var Parms = [];
         if (y_rise.length > this.minimum_partial) {
@@ -796,33 +842,31 @@ const COVID_SANDBOX_NS = {
         // Parms = fminsearch(fun, this.logistic_parameters, x, y, {maxIter:2000,display:false});
         //The fminsearch function on the final pass is a bit too preferential toward slower decays, which is why we split up peak and decay passes with a 3rd final pass using their values
         //tons of logic is going on here, but the point is for this decay to have a predictive curve at the end which predicts higher top ends for rising slope and slightly slower falls for lowering slopes
-        if (segment.multiplier) { 
-            segment.direction = this.do_linear_regression_graph(index, peak.x+x_off, x.length+x_off);
-            segment.direction.slope = (y_decay.length < this.crop) ? 1 : segment.direction.slope; //if our slope isnt even 14 days from the peak just forget it
-            inform(segment.direction);
-            if (segment.direction.slope > 0) {
+        if (segment.multiplier) {             
+            if (segment.direction.slope > 0) { //Rising slope, start at 1:
                 Parms.push(1);
                 Parms.push(1);
-                inform ("hi!" + _curve);
             }
-            else if (y_decay.length > this.minimum_partial) { 
+            else if (y_decay.length > this.minimum_partial) { //Otherwise if our peak is far enough away from the end of the dataset do a decay run:
                 Parms_decay = fminsearch(decay_fun, [this.logistic_parameters[2], this.logistic_parameters[3]], x_decay, y_decay, {maxIter:6000,display:false});
-                // Parms[2] = Parms_decay[0];
-                // Parms[3] = Parms_decay[1];
                 Parms.push(Parms_decay[0]);
                 Parms.push(Parms_decay[1]);
+
+                //Reverse colors:
+
+                segment.color = this.increase_brightness(graph_color, (4-segment.extra) * 20);
+                
+
             }
         }
-        else if (y_decay.length > this.minimum_partial) {
+        else if (y_decay.length > this.minimum_partial) { //decay run for a non-end run
             Parms_decay = fminsearch(decay_fun, [this.logistic_parameters[2], this.logistic_parameters[3]], x_decay, y_decay, {maxIter:6000,display:false});
-            // Parms[2] = Parms_decay[0];
-            // Parms[3] = Parms_decay[1];
             Parms.push(Parms_decay[0]);
             Parms.push(Parms_decay[1]);
         }
         
         
-        if (Parms.length < 3) { //Just in case we didnt get any hits for decay:
+        if (Parms.length < 3) { //Just in case we didnt get any hits for decay: (not sure if this is needed anymore)
             Parms.push(this.logistic_parameters[2]);
             Parms.push(this.logistic_parameters[3]);
         }
@@ -843,24 +887,40 @@ const COVID_SANDBOX_NS = {
         this.generated_curves[_curves_index].start = segment.start;
         this.generated_curves[_curves_index].end = segment.end;
         this.generated_curves[_curves_index].x_offset = x_off;
+        this.generated_curves[_curves_index].length = length;
   
-        
-        this.generated_curves[_curves_index].curve = this.board.create('functiongraph',
-            [function(_x){ return COVID_SANDBOX_NS.fun_base(_x, _curves_index);},
-                COVID_SANDBOX_NS.generated_curves[_curves_index].start+1, // a < x (left bounds)
-                COVID_SANDBOX_NS.generated_curves[_curves_index].end-1 // b < x (right bounds)
+        if (!segment.multiplier) {
+            this.generated_curves[_curves_index].curve = this.board.create('functiongraph',
+                [function(_x){ return SPICY_COVID_NS.fun_base(_x, _curves_index);},
+                    SPICY_COVID_NS.generated_curves[_curves_index].start+1, // a < x (left bounds)
+                    SPICY_COVID_NS.generated_curves[_curves_index].end-1 // b < x (right bounds)
+                ], {
+                    strokeColor: (!segment.color) ? graph_color : segment.color,
+                    dash: 5,
+                    strokewidth: 2
+                }
+            );
+        }
+        else {
+            this.generated_curves[_curves_index].curve = this.board.create('functiongraph',
+            [function(_x){ return SPICY_COVID_NS.fun_base(_x, _curves_index, segment.multiplier);},
+                SPICY_COVID_NS.generated_curves[_curves_index].start+1, // a < x (left bounds)
+                SPICY_COVID_NS.generated_curves[_curves_index].end-1 // b < x (right bounds)
             ], {
-                strokeColor: (!segment.color) ? this.generated_curve_colors[3] : segment.color,
-                dash: 5
+                strokeColor: (!segment.color) ? graph_color : segment.color,
+                dash: 5,
+                strokewidth: 2
             }
         );
+        }
+        
         
         
         var str = "Function for Curve " + _curve + ":\n";
         top = this.number_to_string(top);
         riser = this.number_to_string(riser);
         var _end = this.number_to_string(segment.end);
-        Parms = Parms.map(element => COVID_SANDBOX_NS.number_to_string(element)); //consider changing to forEach instead of creating new array
+        Parms = Parms.map(element => SPICY_COVID_NS.number_to_string(element)); //consider changing to forEach instead of creating new array
         str += "y_" + _curve + " = {x<"+_end+"} (" + top + "+" + riser + ")/(1+" + Parms[0] + "*(x-"+x_off+")^{"+ Parms[1] + "})-" + "(" + top + "+" + riser + ")/(1+" + Parms[2] + "*(x-"+x_off+")^{"+ Parms[3] + "})+" + riser;  
         var divider_str = "\n*****************************\n\n*****************************\n";
         $('#console').val(str + divider_str + $('#console').val());
@@ -875,10 +935,7 @@ const COVID_SANDBOX_NS = {
         
         var _index = this.graphs.length-1;
         
-        // inform(this.graphs[_index].graph_data_obj.dataY);
-        if (this.filled_graphs) this.graphs[_index].graph_data_obj = this.remove_tidy_endpoints(this.graphs[_index].graph_data_obj);
-        // inform(this.graphs[_index].graph_data_obj.dataY);
-
+        if (this.filled_graphs) this.remove_tidy_endpoints(this.graphs[_index].graph_data_obj);
         // var plateau_threshold = this.get_max_graph_affected(_index) / plateau_threshold;
         var _data = this.graphs[_index].graph_data_obj;
         var _data_length = _data.dataX.length;
@@ -901,7 +958,7 @@ const COVID_SANDBOX_NS = {
 
         // var avg_slope = 0;
 
-        for (var x = 0; x < _data.dataX.length; x++) {
+        for (var x = 0; x < _data_length; x++) {
             var current_y = _data.dataY[x];
             // threshold = (x > this.days_threshold) ? this.days_threshold : x;
 
@@ -926,7 +983,7 @@ const COVID_SANDBOX_NS = {
                     // if (x == _data_length-1 || x == _data_length) peaks_and_valleys[peak_index].end = Infinity;
                     // else peaks_and_valleys[peak_index].end = x;
                     if (_data_length - x < this.crop ) { //if we're a (14 days) from the end just call it the last curve and break
-                        peaks_and_valleys[peak_index].end = Infinity;
+                        peaks_and_valleys[peak_index].end = _data_length + this.prediction_length; //Could also set to Infinity;
                         // avg_slope = this.do_linear_regression_graph(_index, run_start_x, _data_length-this.crop);
                         break;
                     }
@@ -955,41 +1012,47 @@ const COVID_SANDBOX_NS = {
       
 
         // if (!peaks_and_valleys[peak_index].peak_x) peaks_and_valleys.pop(); // If we don't have a peak for the last index remove the whole index
-        if (this.filled_graphs) this.add_tidy_endpoints(this.graphs[_index].graph_data_obj);
+   
 
         inform(peaks_and_valleys);
         if (peak_index == 0) {
             alert("No curves found! Have you tried reducing or disabling moving day average?");
+            if (this.filled_graphs) this.add_tidy_endpoints(this.graphs[_index].graph_data_obj);
             return;
         }
 
-        //add two duplicates of last curve to show different scenarios (2x, 4x, and 10x top end):
+
+        // add two duplicates of last curve to show different scenarios (2x, 4x, and 10x top end):
+        var graph_color = this.graphs[this.graphs.length-1].graph_data_obj.getAttribute("strokeColor");
         peaks_and_valleys.push({start: peaks_and_valleys[peak_index].start,
                                 end:  peaks_and_valleys[peak_index].end,
                                 multiplier: 2,
-                                color: this.generated_curve_colors[2]
+                                color: this.increase_brightness(graph_color, 20),// this.generated_curve_colors[2]
+                                extra: 1
         });
 
         peaks_and_valleys.push({start: peaks_and_valleys[peak_index].start,
                                 end:  peaks_and_valleys[peak_index].end,
                                 multiplier: 4,
-                                color: this.generated_curve_colors[1]
+                                color: this.increase_brightness(graph_color, 40),
+                                extra: 2
         });
 
         peaks_and_valleys.push({start: peaks_and_valleys[peak_index].start,
                                 end:  peaks_and_valleys[peak_index].end,
                                 multiplier: 10,
-                                color: this.generated_curve_colors[0]
+                                color: this.increase_brightness(graph_color, 60),
+                                extra: 3
         });
 
         inform(peaks_and_valleys);
         peaks_and_valleys.forEach(function(element, i) {
             inform("-------Curve " + (i+1));
-            COVID_SANDBOX_NS.logistic_regression_with_decay(_index, element, i+1)
+            SPICY_COVID_NS.logistic_regression_with_decay(_index, element, i+1)
         });
 
-        
-        // var c3 = JXG.joinCurves(COVID_SANDBOX_NS.board, [COVID_SANDBOX_NS.generated_curves[0].curve, COVID_SANDBOX_NS.generated_curves[1].curve], 
+        if (this.filled_graphs) this.add_tidy_endpoints(this.graphs[_index].graph_data_obj);
+        // var c3 = JXG.joinCurves(SPICY_COVID_NS.board, [SPICY_COVID_NS.generated_curves[0].curve, SPICY_COVID_NS.generated_curves[1].curve], 
         //     {   strokeColor:'black', 
         //         strokeWidth:3, 
         //         fillColor:'yellow', fillOpacity:0.2
@@ -1096,7 +1159,7 @@ const COVID_SANDBOX_NS = {
         }
         
         this.add_axes();
-        this.board.on('update', function (){ COVID_SANDBOX_NS.update_axes();});
+        this.board.on('update', function (){ SPICY_COVID_NS.update_axes();});
 
 
         inform(this.board);
@@ -1250,7 +1313,7 @@ const COVID_SANDBOX_NS = {
         }
 
         //Doesn't appear to hurt, may help browser garbage collection:
-        this.board.objectsList.forEach(element => COVID_SANDBOX_NS.board.removeObject(element));
+        this.board.objectsList.forEach(element => SPICY_COVID_NS.board.removeObject(element));
         
         this.board.removeEventHandlers(); // Prevents ghost x axis events
         // JXG.JSXGraph.freeBoard(this.board); //errors on removing ticks
@@ -1401,9 +1464,9 @@ const COVID_SANDBOX_NS = {
 
         region_txt_obj.on('move', function(){
             // var point = this.coords.usrCoords;
-            // var bounding_box = COVID_SANDBOX_NS.board.getBoundingBox();
+            // var bounding_box = SPICY_COVID_NS.board.getBoundingBox();
             // var vert_scale = bounding_box[1] - bounding_box[3];
-            // point[2] = point[2] + (COVID_SANDBOX_NS.browser_context_list[COVID_SANDBOX_NS.browser_context].graph_region_font_size  * (this.content.split(" ").length - 1))/ vert_scale;
+            // point[2] = point[2] + (SPICY_COVID_NS.browser_context_list[SPICY_COVID_NS.browser_context].graph_region_font_size  * (this.content.split(" ").length - 1))/ vert_scale;
             // arrow_obj.point1.setPosition(JXG.COORDS_BY_USER, point);
             arrow_obj.point1.setPosition(JXG.COORDS_BY_USER, this.coords.usrCoords);
             // console.log(this);
@@ -1418,7 +1481,7 @@ const COVID_SANDBOX_NS = {
         var graph_index = this.graphs.length; //since we check it before the push() it will equal current .length
         this.graphs.push(construct);
         
-        this.add_tidy_endpoints(this.graphs[graph_index].graph_data_obj);
+        if (this.filled_graphs) this.add_tidy_endpoints(this.graphs[graph_index].graph_data_obj);
 
 
         if (this.rolling_day_average_enabled) {
@@ -1787,13 +1850,6 @@ const COVID_SANDBOX_NS = {
         return _region_list;
     },
 
-    set_text_objects_ontop: function(){ //need to add to init ! un-used 11/27/2020
-        
-        for (var i = 0; i < x; i++) {
-            this.graphs.graph_region_label_obj.layer
-        }
-    },
-
     
     update_region_label: function(index) {
         var _selected_graph_region = this.graphs[index];
@@ -1810,7 +1866,7 @@ const COVID_SANDBOX_NS = {
         
     },
 
-    //Actual algorithm that applies the rolling average to data
+    //Actual rolling average to data algo
     transform_range: function(data, breadth) {
         var range = [];
         var parent_result_array = []
@@ -1849,11 +1905,11 @@ const COVID_SANDBOX_NS = {
 
     //Helper function for particular graph data resetting to regions_of_interest and calls transform_range to apply rolling average
     apply_rolling_average: function(_data, index) {
-            this.remove_tidy_endpoints(this.graphs[index].graph_data_obj)
+            // if (this.filled_graphs) this.remove_tidy_endpoints(this.graphs[index].graph_data_obj)
             this.graphs[index].graph_data_obj.dataX = [...Array(_data.data.length).keys()];
             this.graphs[index].graph_data_obj.dataY = this.extract_affected(_data.data, _data.columns.affected_column); //we need to extract data before next line
             this.graphs[index].graph_data_obj.dataY = this.transform_range(this.graphs[index].graph_data_obj.dataY, this.rolling_day_value);
-            this.add_tidy_endpoints(this.graphs[index].graph_data_obj);
+            if (this.filled_graphs) this.add_tidy_endpoints(this.graphs[index].graph_data_obj);
     },
 
     //Return affected people (deaths or cases data) 
@@ -1885,7 +1941,7 @@ const COVID_SANDBOX_NS = {
 
                     this.graphs[i].graph_data_obj.dataX = [...Array(this.graphs[i].graph_data_obj.dataX.length).keys()];
                     this.graphs[i].graph_data_obj.dataY = this.extract_affected(this.regions_of_interest[i].data, this.regions_of_interest[i].columns.affected_column);
-                    this.add_tidy_endpoints(this.graphs[i].graph_data_obj);
+                    if (this.filled_graphs) this.add_tidy_endpoints(this.graphs[i].graph_data_obj);
                     this.graphs[i].rolling_day_avg = this.rolling_day_value;
                     this.update_arrow_peak(i);
                     // this.update_region_label(i);
@@ -1907,10 +1963,7 @@ const COVID_SANDBOX_NS = {
 
     //This function is just to make the fillcolor look correct/good
     add_tidy_endpoints: function(graph) {
-        if (!this.filled_graphs) {
-            // graph.fillColor = 'none';
-            return; //If checkbox unchecked return
-        }
+        if (!this.filled_graphs) return; //If checkbox unchecked return
         graph.dataX.splice(0, 0, 0); //insert 0 at start of array
         graph.dataX.push(graph.dataX.length-1); //append a duplicate x value at the end of our data 
 
@@ -1923,14 +1976,16 @@ const COVID_SANDBOX_NS = {
     //This function is to remove the added tidy points
     remove_tidy_endpoints: function(graph) {
         if (!this.filled_graphs) return; //if graph doesn't have endpoints return
+        graph.dataX.splice(graph.dataX.length-1,1); //DO NOT CHANGE THIS TO .length-1 !!
         graph.dataX.splice(0,1);
-        graph.dataX.splice(graph.dataX.length-1,1); 
+
         
         // inform(graph.dataY);
+        graph.dataY.splice(graph.dataY.length-1,1); //DO NOT CHANGE THIS TO .length-1 !!
         graph.dataY.splice(0,1);
-        graph.dataY.splice(graph.dataY.length-1,1);
+
         // inform(graph.dataY);
-        return graph;       
+        // return graph;       
     },
 
     fill_regions_dropdown: function(_data) {
@@ -2132,26 +2187,26 @@ $(document).ready(function() {
     })();
 
     //Read page values and assign them to the respective namespace variables
-    COVID_SANDBOX_NS.rolling_day_average_enabled = document.getElementById('sevendayavg').checked
-    COVID_SANDBOX_NS.filled_graphs = document.getElementById('filled_graphs_checkbox').checked
-    COVID_SANDBOX_NS.rolling_day_value = $('#rolling_days').val();
-    COVID_SANDBOX_NS.days = $('#top_regions_days').val();
-    COVID_SANDBOX_NS.ranking = $( "#ranking_dropdown option:selected" ).text();
+    SPICY_COVID_NS.rolling_day_average_enabled = document.getElementById('sevendayavg').checked
+    SPICY_COVID_NS.filled_graphs = document.getElementById('filled_graphs_checkbox').checked
+    SPICY_COVID_NS.rolling_day_value = $('#rolling_days').val();
+    SPICY_COVID_NS.days = $('#top_regions_days').val();
+    SPICY_COVID_NS.ranking = $( "#ranking_dropdown option:selected" ).text();
 
     //Radio button status get:
     if ($("#region_context_us").is(":checked") == true) { //<- needs tidying up
-        COVID_SANDBOX_NS.region_context = "US";
+        SPICY_COVID_NS.region_context = "US";
     }
     else {
-        COVID_SANDBOX_NS.region_context = "Global";
+        SPICY_COVID_NS.region_context = "Global";
     }
 
     if ($("#affected_context_cases").is(":checked") == true) {
 
-        COVID_SANDBOX_NS.affected_context = "Cases";
+        SPICY_COVID_NS.affected_context = "Cases";
     }
     else {
-        COVID_SANDBOX_NS.affected_context = "Deaths";
+        SPICY_COVID_NS.affected_context = "Deaths";
     }
     //Jstree:
     // $(function () { $('#jstree').jstree(); });
@@ -2164,29 +2219,29 @@ $(document).ready(function() {
             dataType: "text",
             success: function(data) {
                 // this.affected_data = this.affected_data.sort(sortFunction);
-                COVID_SANDBOX_NS.process_data("", $.csv.toObjects(data));
-                COVID_SANDBOX_NS.initialize_graph();
+                SPICY_COVID_NS.process_data("", $.csv.toObjects(data));
+                SPICY_COVID_NS.initialize_graph();
                 
             }
             });
     }
     else {
-        COVID_SANDBOX_NS.process_data("covid19_deaths_US_rate", covid19_deaths_US_rate);
-        COVID_SANDBOX_NS.process_data("covid19_confirmed_US_rate", covid19_confirmed_US_rate);
-        COVID_SANDBOX_NS.process_data("covid19_deaths_global_rate", covid19_deaths_global_rate);
-        COVID_SANDBOX_NS.process_data("covid19_confirmed_global_rate", covid19_confirmed_global_rate);
-        COVID_SANDBOX_NS.process_data("spanish_flu_conversion", spanish_flu_conversion);
+        SPICY_COVID_NS.process_data("covid19_deaths_US_rate", covid19_deaths_US_rate);
+        SPICY_COVID_NS.process_data("covid19_confirmed_US_rate", covid19_confirmed_US_rate);
+        SPICY_COVID_NS.process_data("covid19_deaths_global_rate", covid19_deaths_global_rate);
+        SPICY_COVID_NS.process_data("covid19_confirmed_global_rate", covid19_confirmed_global_rate);
+        SPICY_COVID_NS.process_data("spanish_flu_conversion", spanish_flu_conversion);
 
-        COVID_SANDBOX_NS.set_context("US", "Cases");
-        COVID_SANDBOX_NS.initialize_graph();
-        inform(COVID_SANDBOX_NS.affected_data["covid19_deaths_US_rate"]);
+        SPICY_COVID_NS.set_context("US", "Cases");
+        SPICY_COVID_NS.initialize_graph();
+        inform(SPICY_COVID_NS.affected_data["covid19_deaths_US_rate"]);
         var _context = "covid19_deaths_US_rate"
-        var _parent_data = COVID_SANDBOX_NS.affected_data[_context];
-        COVID_SANDBOX_NS.last_updated_date = _parent_data.data[_parent_data.data.length-1][_parent_data.columns.date_column];
+        var _parent_data = SPICY_COVID_NS.affected_data[_context];
+        SPICY_COVID_NS.last_updated_date = _parent_data.data[_parent_data.data.length-1][_parent_data.columns.date_column];
         // location.reload(true);
         var current_date = new Date();
         var yesterday = new Date(current_date.getTime() - 1000*60*60*24);
-        var data_date = new Date(COVID_SANDBOX_NS.last_updated_date);
+        var data_date = new Date(SPICY_COVID_NS.last_updated_date);
         if (yesterday.getMonth() != data_date.getMonth() || yesterday.getDate() != data_date.getDate()) {
             alert("The data appears to be older than yesterday, perhaps server data has not been updated, yet!");
             // var return_val = window.confirm("The data appears to be older than one day, attempt reload? *Note this may be because I have not updated the datafiles, yet.")
@@ -2194,28 +2249,28 @@ $(document).ready(function() {
         }
             
         
-        // $('#last_updated').after(COVID_SANDBOX_NS.last_updated_date)
+        // $('#last_updated').after(SPICY_COVID_NS.last_updated_date)
         var span_start = "<span class=\"small-text-border\">";
         var span_end = "</span>";
-        $('#last_updated').append(span_start + COVID_SANDBOX_NS.last_updated_date + span_end + ", Number of Days since 1/22/20: " + span_start + COVID_SANDBOX_NS.max_date + span_end);
+        $('#last_updated').append(span_start + SPICY_COVID_NS.last_updated_date + span_end + ", Number of Days since 1/22/20: " + span_start + SPICY_COVID_NS.max_date + span_end);
     }
 
     //Event handler for region radio buttons (US/Global)
     $('input[type=radio][name=region_context]').change(function () {
         "use strict";
-        // COVID_SANDBOX_NS.region_context = $("#region_context input[type='radio']:checked").val();
-        COVID_SANDBOX_NS.region_context = this.value;
-        inform(COVID_SANDBOX_NS.region_context + " is now selected.");
+        // SPICY_COVID_NS.region_context = $("#region_context input[type='radio']:checked").val();
+        SPICY_COVID_NS.region_context = this.value;
+        inform(SPICY_COVID_NS.region_context + " is now selected.");
         $('#regions_dropdown').empty();
-        COVID_SANDBOX_NS.fill_regions_dropdown("-- Select --");
-        COVID_SANDBOX_NS.fill_regions_dropdown(COVID_SANDBOX_NS.affected_data[COVID_SANDBOX_NS.get_context()].region_list);
+        SPICY_COVID_NS.fill_regions_dropdown("-- Select --");
+        SPICY_COVID_NS.fill_regions_dropdown(SPICY_COVID_NS.affected_data[SPICY_COVID_NS.get_context()].region_list);
     });
 
     //Event handler for 'affected' radio buttons (cases/deaths)
     $('input[type=radio][name=affected_context]').change(function () {
         "use strict";
-        COVID_SANDBOX_NS.affected_context = this.value;
-        inform(COVID_SANDBOX_NS.affected_context + " is now selected.");
+        SPICY_COVID_NS.affected_context = this.value;
+        inform(SPICY_COVID_NS.affected_context + " is now selected.");
         $("#regions_dropdown").val("-- Select --");
     });
 
@@ -2226,11 +2281,11 @@ $(document).ready(function() {
         var highlighted = $( "#regions_dropdown option:selected" ).text();
         inform(highlighted);
         if (highlighted == "-- Select --" || highlighted === undefined ) return;
-        var _context =  COVID_SANDBOX_NS.get_context();
-        var try_region = COVID_SANDBOX_NS.create_region_of_interest(COVID_SANDBOX_NS.regions_of_interest, highlighted, _context, false);
+        var _context =  SPICY_COVID_NS.get_context();
+        var try_region = SPICY_COVID_NS.create_region_of_interest(SPICY_COVID_NS.regions_of_interest, highlighted, _context, false);
         if (try_region != -1) {
-            // inform(COVID_SANDBOX_NS.regions_of_interest);
-            COVID_SANDBOX_NS.add_region_to_graph(COVID_SANDBOX_NS.regions_of_interest, -1, _context);
+            // inform(SPICY_COVID_NS.regions_of_interest);
+            SPICY_COVID_NS.add_region_to_graph(SPICY_COVID_NS.regions_of_interest, -1, _context);
         }
     });
     
@@ -2239,18 +2294,18 @@ $(document).ready(function() {
         "use strict";
         var highlighted = $( "#ranking_dropdown option:selected" ).text();
         // inform(highlighted);
-        // if (highlighted > COVID_SANDBOX_NS.max_date) highlighted = COVID_SANDBOX_NS.max_date;
+        // if (highlighted > SPICY_COVID_NS.max_date) highlighted = SPICY_COVID_NS.max_date;
         // else if (highlighted < 1) highlighted = 1;
-        COVID_SANDBOX_NS.ranking = highlighted;
+        SPICY_COVID_NS.ranking = highlighted;
     });
 
     $('#slope_dropdown').change(function () {
         "use strict";
         var highlighted = $( "#ranking_dropdown option:selected" ).text();
         // inform(highlighted);
-        // if (highlighted > COVID_SANDBOX_NS.max_date) highlighted = COVID_SANDBOX_NS.max_date;
+        // if (highlighted > SPICY_COVID_NS.max_date) highlighted = SPICY_COVID_NS.max_date;
         // else if (highlighted < 1) highlighted = 1;
-        COVID_SANDBOX_NS.ranking = highlighted;
+        SPICY_COVID_NS.ranking = highlighted;
     });
 
     //Event handler for Rolling Average Checkbox
@@ -2258,12 +2313,12 @@ $(document).ready(function() {
         "use strict";
         if ($(this).is(':checked')) {
             inform($(this).val() + ' is now checked');
-            COVID_SANDBOX_NS.rolling_day_average_enabled = true;
-            COVID_SANDBOX_NS.update_rolling_average(COVID_SANDBOX_NS.regions_of_interest, true);
+            SPICY_COVID_NS.rolling_day_average_enabled = true;
+            SPICY_COVID_NS.update_rolling_average(SPICY_COVID_NS.regions_of_interest, true);
         } else {
             inform($(this).val() + ' is now unchecked');
-            COVID_SANDBOX_NS.rolling_day_average_enabled = false;
-            COVID_SANDBOX_NS.update_rolling_average(COVID_SANDBOX_NS.regions_of_interest, true);
+            SPICY_COVID_NS.rolling_day_average_enabled = false;
+            SPICY_COVID_NS.update_rolling_average(SPICY_COVID_NS.regions_of_interest, true);
         }
     }); 
     
@@ -2272,17 +2327,17 @@ $(document).ready(function() {
         "use strict";
         if ($(this).is(':checked')) {
             inform($(this).val() + ' is now checked');
-            COVID_SANDBOX_NS.filled_graphs = true;
-            // COVID_SANDBOX_NS.update_rolling_average(COVID_SANDBOX_NS.regions_of_interest, true);
+            SPICY_COVID_NS.filled_graphs = true;
+            // SPICY_COVID_NS.update_rolling_average(SPICY_COVID_NS.regions_of_interest, true);
             redo_graphs();
-            COVID_SANDBOX_NS.arrange_region_labels();
-            // COVID_SANDBOX_NS.update();
+            SPICY_COVID_NS.arrange_region_labels();
+            // SPICY_COVID_NS.update();
         } else {
             inform($(this).val() + ' is now unchecked');
-            COVID_SANDBOX_NS.filled_graphs = false;
-            // COVID_SANDBOX_NS.update_rolling_average(COVID_SANDBOX_NS.regions_of_interest, true);
+            SPICY_COVID_NS.filled_graphs = false;
+            // SPICY_COVID_NS.update_rolling_average(SPICY_COVID_NS.regions_of_interest, true);
             redo_graphs();
-            COVID_SANDBOX_NS.arrange_region_labels();
+            SPICY_COVID_NS.arrange_region_labels();
         }
     });
 
@@ -2330,92 +2385,92 @@ $(document).ready(function() {
     //Event handler for UK Spanish Flu button
     $('#uk_spanish_flu_button').click(function() {
         "use strict";
-        var prior_context = {region: COVID_SANDBOX_NS.region_context, affected: COVID_SANDBOX_NS.affected_context}
-        //= COVID_SANDBOX_NS.interpret_context(COVID_SANDBOX_NS.get_context());
+        var prior_context = {region: SPICY_COVID_NS.region_context, affected: SPICY_COVID_NS.affected_context}
+        //= SPICY_COVID_NS.interpret_context(SPICY_COVID_NS.get_context());
         inform (prior_context);
-        COVID_SANDBOX_NS.set_context("Global", "Deaths");
-        var try_region = COVID_SANDBOX_NS.create_region_of_interest(COVID_SANDBOX_NS.regions_of_interest, "United Kingdom Spanish Flu 1918", COVID_SANDBOX_NS.uk_spanish_flu_deaths, false);
+        SPICY_COVID_NS.set_context("Global", "Deaths");
+        var try_region = SPICY_COVID_NS.create_region_of_interest(SPICY_COVID_NS.regions_of_interest, "United Kingdom Spanish Flu 1918", SPICY_COVID_NS.uk_spanish_flu_deaths, false);
         if (try_region != -1) {
-            COVID_SANDBOX_NS.add_region_to_graph(COVID_SANDBOX_NS.regions_of_interest, -1, COVID_SANDBOX_NS.uk_spanish_flu_deaths);
+            SPICY_COVID_NS.add_region_to_graph(SPICY_COVID_NS.regions_of_interest, -1, SPICY_COVID_NS.uk_spanish_flu_deaths);
         }
-        COVID_SANDBOX_NS.set_context(prior_context.region, prior_context.affected);
+        SPICY_COVID_NS.set_context(prior_context.region, prior_context.affected);
 
-        // COVID_SANDBOX_NS.clip_bounding_box_by_graph(); 
-        // COVID_SANDBOX_NS.arrange_region_labels(-1);
+        // SPICY_COVID_NS.clip_bounding_box_by_graph(); 
+        // SPICY_COVID_NS.arrange_region_labels(-1);
         // Update regions dropdown:
         $('#regions_dropdown').empty();
-        COVID_SANDBOX_NS.fill_regions_dropdown("-- Select --");
-        COVID_SANDBOX_NS.fill_regions_dropdown(COVID_SANDBOX_NS.affected_data[COVID_SANDBOX_NS.get_context()].region_list);
+        SPICY_COVID_NS.fill_regions_dropdown("-- Select --");
+        SPICY_COVID_NS.fill_regions_dropdown(SPICY_COVID_NS.affected_data[SPICY_COVID_NS.get_context()].region_list);
     });
 
     //Event handler for when days changes
     $('#top_regions_days').change(function() {
-        COVID_SANDBOX_NS.days = $('#top_regions_days').val();
+        SPICY_COVID_NS.days = $('#top_regions_days').val();
     });
     
 
     //Event handler for region hide button
     $('#hide_button').click(function() {
         "use strict";
-        COVID_SANDBOX_NS.remove_graph($( "#regions_dropdown option:selected" ).text());
-        // COVID_SANDBOX_NS.clip_bounding_box_by_graph(); 
-        COVID_SANDBOX_NS.arrange_region_labels();
+        SPICY_COVID_NS.remove_graph($( "#regions_dropdown option:selected" ).text());
+        // SPICY_COVID_NS.clip_bounding_box_by_graph(); 
+        SPICY_COVID_NS.arrange_region_labels();
         $('#regions_dropdown').empty();
-        COVID_SANDBOX_NS.fill_regions_dropdown("-- Select --");
-        COVID_SANDBOX_NS.fill_regions_dropdown(COVID_SANDBOX_NS.affected_data[COVID_SANDBOX_NS.get_context()].region_list);
+        SPICY_COVID_NS.fill_regions_dropdown("-- Select --");
+        SPICY_COVID_NS.fill_regions_dropdown(SPICY_COVID_NS.affected_data[SPICY_COVID_NS.get_context()].region_list);
     });
 
 
     //Event handler for top regions add button
     $('#add_top_regions_button').click(function() {
         "use strict";
-        COVID_SANDBOX_NS.add_top_regions($('#top_regions').val(), $('#top_regions_days').val(),$( "#slope_dropdown option:selected" ).text());
-        // COVID_SANDBOX_NS.clip_bounding_box_by_graph(); 
-        // COVID_SANDBOX_NS.arrange_region_labels();
+        SPICY_COVID_NS.add_top_regions($('#top_regions').val(), $('#top_regions_days').val(),$( "#slope_dropdown option:selected" ).text());
+        // SPICY_COVID_NS.clip_bounding_box_by_graph(); 
+        // SPICY_COVID_NS.arrange_region_labels();
     });
 
     //Event handler for top regions remove button
     $('#remove_top_regions_button').click(function() {
         "use strict";
-        COVID_SANDBOX_NS.remove_top_regions($('#top_regions').val(), $('#top_regions_days').val(), $( "#slope_dropdown option:selected" ).text());
-        // COVID_SANDBOX_NS.clip_bounding_box_by_graph(); 
-        // COVID_SANDBOX_NS.arrange_region_labels(-1);
+        SPICY_COVID_NS.remove_top_regions($('#top_regions').val(), $('#top_regions_days').val(), $( "#slope_dropdown option:selected" ).text());
+        // SPICY_COVID_NS.clip_bounding_box_by_graph(); 
+        // SPICY_COVID_NS.arrange_region_labels(-1);
     });
 
     //Event handler for reframe (both) button
     $('#reframe_button').click(function() {
-        COVID_SANDBOX_NS.clip_bounding_box_by_graph(); 
-        COVID_SANDBOX_NS.arrange_region_labels();
+        SPICY_COVID_NS.clip_bounding_box_by_graph(); 
+        SPICY_COVID_NS.arrange_region_labels();
     });
 
     
     //Event handler for clear button
     $('#clear_button').click(function() {
         "use strict";
-        COVID_SANDBOX_NS.clear_all(true);
-        COVID_SANDBOX_NS.initialize_graph(); //browser context is changed in function <-
+        SPICY_COVID_NS.clear_all(true);
+        SPICY_COVID_NS.initialize_graph(); //browser context is changed in function <-
 
         $('#regions_dropdown').empty();
-        COVID_SANDBOX_NS.fill_regions_dropdown("-- Select --");
-        COVID_SANDBOX_NS.fill_regions_dropdown(COVID_SANDBOX_NS.affected_data[COVID_SANDBOX_NS.get_context()].region_list);
+        SPICY_COVID_NS.fill_regions_dropdown("-- Select --");
+        SPICY_COVID_NS.fill_regions_dropdown(SPICY_COVID_NS.affected_data[SPICY_COVID_NS.get_context()].region_list);
     });
 
     //Event handler for arrange button
     $('#arrange_button').click(function() {
         "use strict";
-        COVID_SANDBOX_NS.arrange_region_labels();
+        SPICY_COVID_NS.arrange_region_labels();
     });
     
      //Event handler for clip bounding box
      $('#gen_curves').click(function() {
         "use strict";
-        COVID_SANDBOX_NS.generate_curves(); 
+        SPICY_COVID_NS.generate_curves(); 
     });
 
     //Event handler for clip bounding box
     $('#clip_bound_button').click(function() {
         "use strict";
-        COVID_SANDBOX_NS.clip_bounding_box_by_graph(); 
+        SPICY_COVID_NS.clip_bounding_box_by_graph(); 
     });
 
     //Event for window size change:
@@ -2424,46 +2479,46 @@ $(document).ready(function() {
         var window_size = document.body.clientWidth;;
         // inform(window_size);
         waitForFinalEvent(function(){
-            if (Math.abs(window_size - COVID_SANDBOX_NS.viewport_width) < 50) {
+            if (Math.abs(window_size - SPICY_COVID_NS.viewport_width) < 50) {
 
-                COVID_SANDBOX_NS.hold_resize = false;
+                SPICY_COVID_NS.hold_resize = false;
                 return;
             }
-            // inform(window_size, COVID_SANDBOX_NS.viewport_width);
-            if (COVID_SANDBOX_NS.hold_resize) return;
-            COVID_SANDBOX_NS.hold_resize = true;
+            // inform(window_size, SPICY_COVID_NS.viewport_width);
+            if (SPICY_COVID_NS.hold_resize) return;
+            SPICY_COVID_NS.hold_resize = true;
 
-            COVID_SANDBOX_NS.viewport_width = window_size;
+            SPICY_COVID_NS.viewport_width = window_size;
     
             redo_graphs();
 
-            COVID_SANDBOX_NS.clip_bounding_box_by_graph(); 
-            COVID_SANDBOX_NS.arrange_region_labels();
+            SPICY_COVID_NS.clip_bounding_box_by_graph(); 
+            SPICY_COVID_NS.arrange_region_labels();
             
-            COVID_SANDBOX_NS.hold_resize = false;
+            SPICY_COVID_NS.hold_resize = false;
           }, 500, "Graph update" + _date_timer.getTime());
        
       });
 
     
     function redo_graphs() {
-        var _region_list = COVID_SANDBOX_NS.regions_of_interest;
+        var _region_list = SPICY_COVID_NS.regions_of_interest;
         var buffer = [];
         for (var i = 0; i< _region_list.length; i++) { //buffer the regions
-            var try_region = COVID_SANDBOX_NS.create_region_of_interest(buffer, _region_list[i].region, _region_list[i].context, true)
+            var try_region = SPICY_COVID_NS.create_region_of_interest(buffer, _region_list[i].region, _region_list[i].context, true)
         }
         // inform(buffer);
-        COVID_SANDBOX_NS.clear_all(false);
-        COVID_SANDBOX_NS.initialize_graph(); //browser context is changed in function <-
+        SPICY_COVID_NS.clear_all(false);
+        SPICY_COVID_NS.initialize_graph(); //browser context is changed in function <-
         // inform(buffer);
         // var num = buffer.length;
         // if (num > 35) {
         //     num = 10;
         // }
-        COVID_SANDBOX_NS.regions_of_interest = buffer;
-        for (var i = 0; i < COVID_SANDBOX_NS.regions_of_interest.length; i++) {
-            // COVID_SANDBOX_NS.create_region_of_interest(COVID_SANDBOX_NS.regions_of_interest, buffer[i].region, buffer[i].context)
-            COVID_SANDBOX_NS.add_region_to_graph(COVID_SANDBOX_NS.regions_of_interest, i, COVID_SANDBOX_NS.regions_of_interest[i].context);
+        SPICY_COVID_NS.regions_of_interest = buffer;
+        for (var i = 0; i < SPICY_COVID_NS.regions_of_interest.length; i++) {
+            // SPICY_COVID_NS.create_region_of_interest(SPICY_COVID_NS.regions_of_interest, buffer[i].region, buffer[i].context)
+            SPICY_COVID_NS.add_region_to_graph(SPICY_COVID_NS.regions_of_interest, i, SPICY_COVID_NS.regions_of_interest[i].context);
         }
     }
 
@@ -2475,7 +2530,7 @@ $(document).ready(function() {
         // var val2 = $('#rollingavgslider').val(); //Get
         var checked = $('#sevendayavg').is(':checked');
 
-        if (val == COVID_SANDBOX_NS.last_rolling_val && checked == COVID_SANDBOX_NS.last_rolling_bool) return; //Nothing has actually changed so return
+        if (val == SPICY_COVID_NS.last_rolling_val && checked == SPICY_COVID_NS.last_rolling_bool) return; //Nothing has actually changed so return
 
 
         if (val < 3) val = 3; //Rolling averages only make sense when they're above 1...
@@ -2485,13 +2540,13 @@ $(document).ready(function() {
             $('#rolling_days').val(val) //Set
         }
 
-        COVID_SANDBOX_NS.rolling_day_value = val;
-        COVID_SANDBOX_NS.update_rolling_average(COVID_SANDBOX_NS.regions_of_interest, true);
+        SPICY_COVID_NS.rolling_day_value = val;
+        SPICY_COVID_NS.update_rolling_average(SPICY_COVID_NS.regions_of_interest, true);
 
-        COVID_SANDBOX_NS.last_rolling_val = val;
+        SPICY_COVID_NS.last_rolling_val = val;
         // this.last_val2 = val;
-        COVID_SANDBOX_NS.last_rolling_bool = checked;
-        inform(COVID_SANDBOX_NS.board);
+        SPICY_COVID_NS.last_rolling_bool = checked;
+        inform(SPICY_COVID_NS.board);
     }
     // setInterval(check_for_avg_change, 1000);
 
