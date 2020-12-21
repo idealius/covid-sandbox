@@ -28,7 +28,25 @@ function isString(x) {
     return Object.prototype.toString.call(x) === "[object String]"
 }
 
-
+JXG.joinCurves = function(board, parents, attributes) {
+    var cu1 = parents[0], 
+        cu2 = parents[1],
+        attr = JXG.copyAttributes(attributes, board.options, 'curve'),
+        c = board.create('curve', [[0], [0]], attr);
+    inform(cu1,cu2);
+    c.updateDataArray = function() {
+        // The two paths have to be connected
+        this.dataX = cu1.dataX.slice(0,-1).concat(cu2.dataX);
+        this.dataY = cu1.dataY.slice(0,-1).concat(cu2.dataY);
+        if (this.dataX.length<4) {
+            this.bezierDegree = 1;
+        } else {
+            this.bezierDegree = cu1.bezierDegree;
+        }
+    };
+    c.prepareUpdate().update().updateRenderer();
+    return c;
+};
 
 //--------------------------------------------------------------------------------------------
 
@@ -55,7 +73,7 @@ const COVID_SANDBOX_NS = {
     predicted_days: 21, //minimum run length ahead of current run to compare via linear regression
     minimum_partial: 1, //minimum length of a rise or decay run to train our subsequent logistic regression algorithm
     logistic_parameters: [2**21, 1, 2**21, 1], //default base exponentiation multipler (rise), exponent (rise), base multipler (decay), exponent (decay) 
-    cutoff: 14, //days to ignore at end of curve generation because of delayed reporting <- Needs implementation
+    crop: 14, //days to ignore at end of curve generation because of delayed reporting <- Needs implementation
 
     generated_curves: [],
 
@@ -119,6 +137,13 @@ const COVID_SANDBOX_NS = {
         4:{value:'#33FFF4', gamma: 'bright'},//cyan
         5:{value:'#59FF33', gamma: 'bright'}//green
 
+    },
+
+    generated_curve_colors: {
+        0:'#7fd483', //light gr
+        1:'#5ead61', //medium gr
+        2:'#327535', //dark gr
+        3:'#174d19', //darker gr
     },
 
     //Object for constructing the column name strings for the different datasets.
@@ -644,25 +669,33 @@ const COVID_SANDBOX_NS = {
 
     //The approach is to use a cost function to do the regression
     //We divide the segment into before peak / after peak, regress those, and use those as initial values for the full function regression
-    logistic_regression_with_decay: function(index, _start, _end, _curve) {
+    logistic_regression_with_decay: function(index, segment, _curve) {
 
-        
         var y_data = this.graphs[index].graph_data_obj.dataY;
         var x_data = this.graphs[index].graph_data_obj.dataX;
 
-        var y = y_data.slice(_start,_end);
-        var x = x_data.slice(_start,_end);
+        if (segment.multiplier) { //This is for the last curve
+            var y = y_data.slice(segment.start,segment.end-this.crop);
+            var x = x_data.slice(segment.start,segment.end-this.crop);
+            var top = Math.max(...y) * segment.multiplier;
+            var riser = Math.min(...y);//* (1 / _multiplier);
+        }
+        else { //This is for the former curves
+            var y = y_data.slice(segment.start, segment.end);
+            var x = x_data.slice(segment.start, segment.end);
+            var top = Math.max(...y);
+            var riser = Math.min(...y);
+        }
 
-        //Next 2 lines are to normalize the offset to help logistic exponent regression because exponetial-esque regression has a tough time with high x values
-        var x_off = x[0];
-        var x = x.map( element => element - x_off + this.logistic_gap);
 
-        var top = Math.max(...y);
-        // if (_end == Infinity) top *= 2; //experimental
         if (this.filled_graphs) { //completely, 100%, have no idea, why this is needed for filled graphs -_-
             y.splice(y.length-1, 1);
         }
-        var riser = Math.min(...y);
+
+        //Next 2 lines are to normalize the offset to help logistic exponent regression because exponential-esque regression has a tough time with high x values
+        var x_off = x[0];
+        var x = x.map( element => element - x_off + this.logistic_gap);
+        
         // inform(riser, y);
 
         var fun = function(_x,P) { // Logistic rise and decay used for regression
@@ -750,7 +783,7 @@ const COVID_SANDBOX_NS = {
         // inform(y_decay[0], y_rise[x_rise.length-1]);
         var Parms = [];
         if (y_rise.length > this.minimum_partial) {
-            Parms_rise = fminsearch(rise_fun, [this.logistic_parameters[0], this.logistic_parameters[1]], x_rise, y_rise, {maxIter:2000,display:false});
+            Parms_rise = fminsearch(rise_fun, [this.logistic_parameters[0], this.logistic_parameters[1]], x_rise, y_rise, {maxIter:6000,display:false});
             // Parms[0] = Parms_rise[0];
             // Parms[1] = Parms_rise[1];
             Parms.push(Parms_rise[0]);
@@ -761,26 +794,42 @@ const COVID_SANDBOX_NS = {
             Parms.push(this.logistic_parameters[1]);  
         }
         // Parms = fminsearch(fun, this.logistic_parameters, x, y, {maxIter:2000,display:false});
-        if (y_decay.length > this.minimum_partial) {
-            Parms_decay = fminsearch(decay_fun, [this.logistic_parameters[2], this.logistic_parameters[3]], x_decay, y_decay, {maxIter:2000,display:false});
+        //The fminsearch function on the final pass is a bit too preferential toward slower decays, which is why we split up peak and decay passes with a 3rd final pass using their values
+        //tons of logic is going on here, but the point is for this decay to have a predictive curve at the end which predicts higher top ends for rising slope and slightly slower falls for lowering slopes
+        if (segment.multiplier) { 
+            segment.direction = this.do_linear_regression_graph(index, peak.x+x_off, x.length+x_off);
+            segment.direction.slope = (y_decay.length < this.crop) ? 1 : segment.direction.slope; //if our slope isnt even 14 days from the peak just forget it
+            inform(segment.direction);
+            if (segment.direction.slope > 0) {
+                Parms.push(1);
+                Parms.push(1);
+                inform ("hi!" + _curve);
+            }
+            else if (y_decay.length > this.minimum_partial) { 
+                Parms_decay = fminsearch(decay_fun, [this.logistic_parameters[2], this.logistic_parameters[3]], x_decay, y_decay, {maxIter:6000,display:false});
+                // Parms[2] = Parms_decay[0];
+                // Parms[3] = Parms_decay[1];
+                Parms.push(Parms_decay[0]);
+                Parms.push(Parms_decay[1]);
+            }
+        }
+        else if (y_decay.length > this.minimum_partial) {
+            Parms_decay = fminsearch(decay_fun, [this.logistic_parameters[2], this.logistic_parameters[3]], x_decay, y_decay, {maxIter:6000,display:false});
             // Parms[2] = Parms_decay[0];
             // Parms[3] = Parms_decay[1];
             Parms.push(Parms_decay[0]);
             Parms.push(Parms_decay[1]);
         }
-        else {
+        
+        
+        if (Parms.length < 3) { //Just in case we didnt get any hits for decay:
             Parms.push(this.logistic_parameters[2]);
             Parms.push(this.logistic_parameters[3]);
         }
-        // Parms[0] = Parms_rise[0];
-        // Parms[1] = Parms_rise[1];
-        // Parms[2] = 0;
-        // Parms[3] = 0;
-        // Parms = Parms.map(element => (element == 0 || element == Infinity) ? .001 : element);
-        
+ 
         inform("Defaults:", this.logistic_parameters);
         inform("Adjusted:", Parms, [top, riser]);
-        Parms = fminsearch(fun, Parms, x, y, {maxIter:20,display:false});
+        Parms = fminsearch(fun, Parms, x, y, {maxIter:2000,display:false});
         // Parms = fminsearch(fun, this.logistic_parameters, x, y, {maxIter:2000,display:false});
         inform("Adjusted Twice:", Parms, [top, riser]);
         // Parms = fminsearch(fun, Parms, x, y, {maxIter:2000,display:false});
@@ -791,8 +840,8 @@ const COVID_SANDBOX_NS = {
         this.generated_curves[_curves_index].Parms = Parms;
         this.generated_curves[_curves_index].top = top;
         this.generated_curves[_curves_index].riser = riser;
-        this.generated_curves[_curves_index].start = _start;
-        this.generated_curves[_curves_index].end = _end;
+        this.generated_curves[_curves_index].start = segment.start;
+        this.generated_curves[_curves_index].end = segment.end;
         this.generated_curves[_curves_index].x_offset = x_off;
   
         
@@ -801,15 +850,16 @@ const COVID_SANDBOX_NS = {
                 COVID_SANDBOX_NS.generated_curves[_curves_index].start+1, // a < x (left bounds)
                 COVID_SANDBOX_NS.generated_curves[_curves_index].end-1 // b < x (right bounds)
             ], {
-                strokeColor:this.custom_colors[3].value,
+                strokeColor: (!segment.color) ? this.generated_curve_colors[3] : segment.color,
                 dash: 5
             }
         );
         
+        
         var str = "Function for Curve " + _curve + ":\n";
         top = this.number_to_string(top);
         riser = this.number_to_string(riser);
-        _end = this.number_to_string(_end);
+        var _end = this.number_to_string(segment.end);
         Parms = Parms.map(element => COVID_SANDBOX_NS.number_to_string(element)); //consider changing to forEach instead of creating new array
         str += "y_" + _curve + " = {x<"+_end+"} (" + top + "+" + riser + ")/(1+" + Parms[0] + "*(x-"+x_off+")^{"+ Parms[1] + "})-" + "(" + top + "+" + riser + ")/(1+" + Parms[2] + "*(x-"+x_off+")^{"+ Parms[3] + "})+" + riser;  
         var divider_str = "\n*****************************\n\n*****************************\n";
@@ -817,7 +867,7 @@ const COVID_SANDBOX_NS = {
 
     },
 
-    //Determines peaks and valleys, then does the logistic regression for each segment
+    //Determines segments (curves/waves/surges) by a chosen additional angle of slope, then does the logistic regression for each segment
     generate_curves: function() {
        
         //My 2.0 pseudo code for peak / valley finding:
@@ -825,9 +875,9 @@ const COVID_SANDBOX_NS = {
         
         var _index = this.graphs.length-1;
         
-        inform(this.graphs[_index].graph_data_obj.dataY);
+        // inform(this.graphs[_index].graph_data_obj.dataY);
         if (this.filled_graphs) this.graphs[_index].graph_data_obj = this.remove_tidy_endpoints(this.graphs[_index].graph_data_obj);
-        inform(this.graphs[_index].graph_data_obj.dataY);
+        // inform(this.graphs[_index].graph_data_obj.dataY);
 
         // var plateau_threshold = this.get_max_graph_affected(_index) / plateau_threshold;
         var _data = this.graphs[_index].graph_data_obj;
@@ -848,6 +898,8 @@ const COVID_SANDBOX_NS = {
         var peaks_and_valleys = [];
         var run_start_x = 0;
         var peak_index = 0;
+
+        // var avg_slope = 0;
 
         for (var x = 0; x < _data.dataX.length; x++) {
             var current_y = _data.dataY[x];
@@ -873,8 +925,9 @@ const COVID_SANDBOX_NS = {
                     peaks_and_valleys[peak_index].start = run_start_x;
                     // if (x == _data_length-1 || x == _data_length) peaks_and_valleys[peak_index].end = Infinity;
                     // else peaks_and_valleys[peak_index].end = x;
-                    if (_data_length - x < this.cutoff ) { //if we're a (14 days) from the end just call it the last curve and break
+                    if (_data_length - x < this.crop ) { //if we're a (14 days) from the end just call it the last curve and break
                         peaks_and_valleys[peak_index].end = Infinity;
+                        // avg_slope = this.do_linear_regression_graph(_index, run_start_x, _data_length-this.crop);
                         break;
                     }
                     else {
@@ -885,6 +938,7 @@ const COVID_SANDBOX_NS = {
                     
                         peak_index ++;
                         run_start_x = x;
+                        avg_slope = 0;
                         x = (x + threshold >= _data_length-1) ? x : x + threshold;
                     }
                                 // var peak_range = peaks_and_valleys[peak_index].peak_x * 2
@@ -899,6 +953,7 @@ const COVID_SANDBOX_NS = {
 
         }
       
+
         // if (!peaks_and_valleys[peak_index].peak_x) peaks_and_valleys.pop(); // If we don't have a peak for the last index remove the whole index
         if (this.filled_graphs) this.add_tidy_endpoints(this.graphs[_index].graph_data_obj);
 
@@ -908,10 +963,37 @@ const COVID_SANDBOX_NS = {
             return;
         }
 
+        //add two duplicates of last curve to show different scenarios (2x, 4x, and 10x top end):
+        peaks_and_valleys.push({start: peaks_and_valleys[peak_index].start,
+                                end:  peaks_and_valleys[peak_index].end,
+                                multiplier: 2,
+                                color: this.generated_curve_colors[2]
+        });
+
+        peaks_and_valleys.push({start: peaks_and_valleys[peak_index].start,
+                                end:  peaks_and_valleys[peak_index].end,
+                                multiplier: 4,
+                                color: this.generated_curve_colors[1]
+        });
+
+        peaks_and_valleys.push({start: peaks_and_valleys[peak_index].start,
+                                end:  peaks_and_valleys[peak_index].end,
+                                multiplier: 10,
+                                color: this.generated_curve_colors[0]
+        });
+
+        inform(peaks_and_valleys);
         peaks_and_valleys.forEach(function(element, i) {
             inform("-------Curve " + (i+1));
-            COVID_SANDBOX_NS.logistic_regression_with_decay(_index, element.start, element.end, i+1)
+            COVID_SANDBOX_NS.logistic_regression_with_decay(_index, element, i+1)
         });
+
+        
+        // var c3 = JXG.joinCurves(COVID_SANDBOX_NS.board, [COVID_SANDBOX_NS.generated_curves[0].curve, COVID_SANDBOX_NS.generated_curves[1].curve], 
+        //     {   strokeColor:'black', 
+        //         strokeWidth:3, 
+        //         fillColor:'yellow', fillOpacity:0.2
+        //     });
 
         
         return;
