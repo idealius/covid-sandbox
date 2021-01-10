@@ -26,6 +26,7 @@ Q. TBD
 A. TBD
 
 ### Major Bugs
+1/10/2021: BUG with west virginia and virginia and BUG Congo DR of Congo because names are inclusive
 12/1/2020: Firefox does not change the logo responsively to window.resize
 
 ### Recently Fixed Bugs
