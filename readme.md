@@ -1,7 +1,6 @@
 ![Logo](/img/Spicy_Covid_Graphs_Logo.png)
 
 Link: (http://covid19graphs.42web.io/index.html)
- 
 
 ### Purpose:
 When doing personal risk assessment of COVID-19 in different contexts like local and global regions, other dashboards did not make it easy see regions overlayed and per population total with adjustable moving averages. To rectify this would involve a lot of copy/pasting and data transposing in spreadsheets like Excel. The Python project (also mine) listed in sources below is used to transpose Johns Hopkins data and convert it to rates. This makes the data easy to use in Tableau, Excel, etc.
