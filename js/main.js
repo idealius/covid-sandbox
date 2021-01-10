@@ -32,7 +32,7 @@ function isString(x) {
 //--------------------------------------------------------------------------------------------
 
 //Our namespace to prevent interferring with other libraries or the window namespace
-const SPICY_COVID_NS = {
+var SPICY_COVID_NS = {
 
     point: function(x,y){this.x=x; this.y=y;},
 
@@ -48,15 +48,18 @@ const SPICY_COVID_NS = {
     xaxis: {},
     abbv_xaxis: {},
 
-    logistic_gap: 0, //x buffer we use for normalizing the machine learning to improve logistic regression functions 
-    days_threshold: 30, //minimum section length for linear regression comparisons
+    logistic_gap: 21, //x buffer we use to tinker with logistic regression / mainly prevents large vertical lines at 0 index of generated curves
+    days_threshold: 28, //minimum section length for linear regression comparisons
     angle_threshold: 30, //angle in degrees to start distinguishing for wave separation logic
+    root_angle_threshold: 45,
+    segment_angle_threshold: 30,
     predicted_days: 21, //minimum run length ahead of current run to compare via linear regression
     minimum_partial: 1, //minimum length of a rise or decay run to train our subsequent logistic regression algorithm
     logistic_parameters: [2**21, 1, 2**21, 1], //default base exponentiation multipler (rise), exponent (rise), base multipler (decay), exponent (decay) 
-    crop: 14, //days to ignore at end of curve generation because of delayed reporting <- Needs implementation
-    prediction_length: 30 * 3, //Can also set to Infinity
+    crop: 0, //days to ignore at end of curve generation because of delayed reporting
+    prediction_length: 30 * 3, //Can also set to Infinity for the prediction waves
 
+    generated_curves_sum: [],
     generated_curves: [],
 
     //For holding updating graph regions on window.resize()
@@ -92,6 +95,7 @@ const SPICY_COVID_NS = {
     //Graphs template, data structure used like:
     // this.graphs[graph_index].graph_data_obj.dataX[day_index]
     graph_status_obj: function(_region_obj, _data_obj, _arrow_obj,  _rolling, _color, _arrow_peak, _context, _max) {
+        "use strict";
         this.graph_region_label_obj = _region_obj; //JSXGraph object for region label on graph
         this.graph_data_obj = _data_obj; //JSXGraph object for graph data
         this.graph_arrow_obj = _arrow_obj;
@@ -121,15 +125,16 @@ const SPICY_COVID_NS = {
 
     },
 
-    generated_curve_colors: [
-        '#7fd483', //light gr
-        '#5ead61', //medium gr
-        '#327535', //dark gr
-        '#174d19', //darker gr
-    ],
+    // generated_curve_colors: [
+    //     '#7fd483', //light gr
+    //     '#5ead61', //medium gr
+    //     '#327535', //dark gr
+    //     '#174d19', //darker gr
+    // ],
 
     //Object for constructing the column name strings for the different datasets.
     header_obj: function(_filename) {
+        "use strict";
         switch (_filename) {
             case 'covid19_deaths_US_rate':
                 this.affected_column = "Deaths (Per Capita)";
@@ -167,6 +172,7 @@ const SPICY_COVID_NS = {
 
    //Object class for different datasets
    browser_context_template: function(_context, _graph_region_font_size, _graph_region_outline, _axis_font_size, ) {
+    "use strict";
     // var data2 = _data; //this is a required buffer between data & _data
     // var columns2 = new this.header_obj(_filename);
     var obj = {
@@ -191,6 +197,7 @@ const SPICY_COVID_NS = {
     
 
     affected_data_template: function(_filename, _data) {
+        "use strict";
         var data2 = _data; //this is a required buffer between data & _data
         var columns2 = new this.header_obj(_filename);
         var obj = {
@@ -206,6 +213,7 @@ const SPICY_COVID_NS = {
     //Regions template, data structure used like:
     //this.regions_of_interest[graph_index].data[days_index][affected_column_name]
     push_region_obj: function(_parent_array, _filename, _data, _region) {
+        "use strict";
         var data2 = _data; //this is a required buffer between data & _data <- confirmed
         var columns2 = new this.header_obj(_filename);
         // var context2 = new interpret_context(_filename);
@@ -229,6 +237,7 @@ const SPICY_COVID_NS = {
 
     //Return dataset context
     get_context: function() {
+        "use strict";
         if (this.region_context == "US") {
             if (this.affected_context == "Cases") return this.us_case_rate;
             else return this.us_death_rate;
@@ -241,7 +250,8 @@ const SPICY_COVID_NS = {
 
     //Might not need this.
     interpret_context: function(_context){
-        _return = {region:'',affected:''}
+        "use strict";
+        var _return = {region:'',affected:''}
         switch (_context) {
             case this.us_case_rate:
                 _return.region = 'US';
@@ -267,6 +277,7 @@ const SPICY_COVID_NS = {
     },
 
     set_context: function(_region, _affected) {
+        "use strict";
         if (_region.toUpperCase() == "US") { //.toUpperCase just to avoid any case mistakes
             _region = "US"; 
             $("#region_context_us").prop('checked', true);
@@ -338,7 +349,8 @@ const SPICY_COVID_NS = {
 
     //Removes regions with affected (per capita) values == -1
     remove_invalid_regions: function(_filename) {
-        _data = this.affected_data[_filename];
+        "use strict";
+        var _data = this.affected_data[_filename];
 
         var current_region = ""
         for (var i=0; i<_data.data.length;i++) {
@@ -359,6 +371,7 @@ const SPICY_COVID_NS = {
     //Code based on https://www.intmath.com/cg3/jsxgraph-axes-ticks-grids.php
     //Months on x-axis
     alt_x_axis: function() {
+        "use strict";
         // JXG.Options.slider.ticks.majorHeight = 0;
 
         this.board = JXG.JSXGraph.initBoard('jsxbox',{
@@ -521,8 +534,8 @@ const SPICY_COVID_NS = {
             return coords.usrCoords;
         }
         var setTicks = function() {
-            bb = SPICY_COVID_NS.board.getBoundingBox();
-            yTicksVal = Math.pow(10, Math.floor((Math.log(0.6*(bb[1]-bb[3])))/Math.LN10)); //changed from .6 to .006
+            var bb = SPICY_COVID_NS.board.getBoundingBox();
+            var yTicksVal = Math.pow(10, Math.floor((Math.log(0.6*(bb[1]-bb[3])))/Math.LN10)); //changed from .6 to .006
             if( (bb[1]-bb[3])/yTicksVal > 5) {
               yTicks = yTicksVal;
             } else {
@@ -533,11 +546,11 @@ const SPICY_COVID_NS = {
         setTicks();
         var origPt = this.board.create('point', [0,0],{visible:false});
         this.board.on('boundingbox', function() {
-            bb = SPICY_COVID_NS.board.getBoundingBox();
-            mycoordsY = new JXG.Coords(JXG.COORDS_BY_USER, [0,origPt.Y()], SPICY_COVID_NS.board);
-            yPixels = mycoordsY.scrCoords[2];
-            mycoordsX = new JXG.Coords(JXG.COORDS_BY_USER, [0,origPt.X()], SPICY_COVID_NS.board);
-            xPixels = mycoordsX.scrCoords[1];
+            var bb = SPICY_COVID_NS.board.getBoundingBox();
+            var mycoordsY = new JXG.Coords(JXG.COORDS_BY_USER, [0,origPt.Y()], SPICY_COVID_NS.board);
+            var yPixels = mycoordsY.scrCoords[2];
+            var mycoordsX = new JXG.Coords(JXG.COORDS_BY_USER, [0,origPt.X()], SPICY_COVID_NS.board);
+            var xPixels = mycoordsX.scrCoords[1];
 
             //Next section commented out because it slows down panning too much:
             // if( 30 > yPixels) {	
@@ -592,6 +605,7 @@ const SPICY_COVID_NS = {
     },
 
     increase_brightness:function(hex, percent){
+        "use strict";
         // strip the leading # if it's there
         inform(hex);
         hex = hex.replace(/^\s*#|\s*$/g, '');
@@ -614,6 +628,7 @@ const SPICY_COVID_NS = {
 
     //Removes scientific notation
     number_to_string: function (num) {
+        "use strict";
         let numStr = String(num);
 
         if (Math.abs(num) < 1.0)
@@ -642,26 +657,21 @@ const SPICY_COVID_NS = {
         return numStr;
     },
 
-    // Base logistic regression equation function /w decay 
-    fun_base: function(xi, curve_index, multiplier) {
-        var P = this.generated_curves[curve_index].Parms;
-        var top = this.generated_curves[curve_index].top ;
-        var riser = this.generated_curves[curve_index].riser;
-        if (!this.generated_curves[curve_index].x_offset) this.generated_curves[curve_index].x_offset = 0;
-        var x_off = this.generated_curves[curve_index].x_offset;
+     // Base logistic regression equation function /w decay 
+     func_base: function(xi, gen_curve, multiplier) {
+        "use strict";
+        // inform(gen_curve, curve_index);
+        var P = gen_curve.Parms;
+        var top = gen_curve.top ;
+        var riser = gen_curve.riser;
+        if (!gen_curve.x_offset) gen_curve.x_offset = 0;
+        var x_off = gen_curve.x_offset;
 
-        var base = xi - x_off + this.logistic_gap;
-        var length = this.generated_curves[curve_index].length;
-        // if (base < 0) {
-        //     var first_order = 1 - P[0]*Math.abs(base)**Math.abs(P[1]);
-        // }
-        // else 
+        var base = xi - x_off + SPICY_COVID_NS.logistic_gap;
+        var length = gen_curve.length;
+
         var first_order = 1 + P[0]*base**P[1];
-        // base = P[3]
-        // if (base < 0) {
-        //     var second_order =  1 - P[2]*Math.abs(base)**-(xi + x_off);
-        // }
-        // else
+
         var second_order =  1 + P[2]*base**P[3];
 
         // inform (test);
@@ -676,9 +686,145 @@ const SPICY_COVID_NS = {
         // return (top + riser) / (1 + P[0]*(xi + x_off)**Math.abs(P[1])) - (top + riser) / (1 + P[2]*P[3]**-(xi + x_off)) + riser;
     },
 
+
+    func_base_sum: function(xi, P) {
+        "use strict";
+        // var P = SPICY_COVID_NS.generated_curves_sum.Parms;
+        var curves_num = SPICY_COVID_NS.generated_curves_sum.curves_num;
+        // inform(P);
+        var result = 0;
+        for (var i = 0; i < curves_num; i ++) {
+            var x_off = SPICY_COVID_NS.generated_curves[i].x_offset;
+            // if (xi < x_off + SPICY_COVID_NS.logistic_gap) continue;
+            var base = xi - x_off + SPICY_COVID_NS.logistic_gap; //- peaks_and_valleys.start + this.logistic_gap;
+            var index = i * curves_num;
+            var top = SPICY_COVID_NS.generated_curves_sum.peaks_and_valleys[i].peak.y;
+            var res = top/(1 + P[index]*base**P[index+1]) - top/(1 + P[index+2]*base**P[index+3]);
+            if (res > 0) {
+                // inform(res);
+                result += res;
+            }
+        }
+        return result;
+
+    },
+
+    logistic_regression_with_decay_one_curve: function(peaks_and_valleys, Parms_collect) {
+        "use strict";
+        var curves_num = peaks_and_valleys.length;
+        var graph_index = this.graphs.length-1;
+
+        var y = this.graphs[graph_index].graph_data_obj.dataY;
+        var x = this.graphs[graph_index].graph_data_obj.dataX;
+        // var top = Math.max(...y);
+
+        //if we dont have parms lets generate some based on default values
+        //Parms_collect = !Parms_collect;
+        if (!Parms_collect) {
+            var Parms_collect = [];
+            for (var i = 0; i < curves_num; i++) {
+                this.logistic_parameters.forEach(element => Parms_collect.push(element));
+                // Parms_collect.push(.01);
+            }
+        }
+
+        // this.generated_curves_sum.Parms = Parms_collect;
+        this.generated_curves_sum.curves_num = curves_num;
+        this.generated_curves_sum.peaks_and_valleys = peaks_and_valleys;
+        
+
+
+        inform(Parms_collect);
+        this.generated_curves_sum.Parms = fminsearch(SPICY_COVID_NS.func_base_sum, Parms_collect, x, y, {maxIter:100,display:false, step_style: true, func2: SPICY_COVID_NS.func_base, curves: SPICY_COVID_NS.generated_curves});
+        inform(this.generated_curves_sum.Parms );
+
+        var graph_color = this.graphs[this.graphs.length-1].graph_data_obj.getAttribute("strokeColor");
+        this.generated_curves_sum.curve = this.board.create('functiongraph',
+        [function(_x){ return SPICY_COVID_NS.func_base_sum(_x, SPICY_COVID_NS.generated_curves_sum.Parms)},
+            SPICY_COVID_NS.generated_curves_sum.peaks_and_valleys[0].start, // a < x (left bounds)
+            x.length+SPICY_COVID_NS.prediction_length // b < x (right bounds)
+        ], {
+            strokeColor: graph_color,
+            dash: 5,
+            strokewidth: 2
+        });
+
+        //Draw underlying curves:
+        // inform(this.generated_curves);
+
+        for (var curve_index = 0; curve_index < this.generated_curves.length; curve_index++) {
+        
+            for (var i = 0; i < 4; i ++) { //might not be needed, oddly
+                // inform(this.generated_curves[curve_index].Parms);
+                this.generated_curves[curve_index].Parms[i] = this.generated_curves_sum.Parms[4*curve_index+i];
+
+            }
+            var curve = this.generated_curves[curve_index];
+            (function(cur){ //ugly hack to give the curve proper scope to hold the proper curve index within the loop
+                SPICY_COVID_NS.generated_curves[curve_index].curve = SPICY_COVID_NS.board.create('functiongraph',
+                // [function(_x){ return SPICY_COVID_NS.fun_base(_x, SPICY_COVID_NS.generated_curves);},
+                [function(_x){return SPICY_COVID_NS.func_base(_x, cur);},
+                    0, // a < x (left bounds)
+                    x.length+SPICY_COVID_NS.prediction_length // b < x (right bounds)
+                ], {
+                    strokeColor: graph_color,
+                    dash: 1,
+                    strokewidth: 2
+                });
+            })(curve);
+
+            var str = "Function for Curve " + (curve_index+1) + ":\n";
+            var top = this.number_to_string(curve.top);
+            var Parms = curve.Parms.map(element => SPICY_COVID_NS.number_to_string(element)); //consider changing to forEach instead of creating new array
+            var x_off = curve.x_offset;
+            str += "y_" + (curve_index+1) + " = " + top + "/(1+" + Parms[0] + "*(x-"+x_off+")^{"+ Parms[1] + "})-" +  top + "/(1+" + Parms[2] + "*(x-"+x_off+")^{"+ Parms[3] + "})";  
+            var divider_str = "\n*****************************\n\n*****************************\n";
+            $('#console').val(str + divider_str + $('#console').val());
+    
+
+
+        }
+        inform(this.generated_curves);
+        inform(this.generated_curves_sum.Parms);
+
+        // for(var i = 0; i < length; i++){
+        //     var variable = variables[i];
+        //     otherVariable.doSomething(variable, function(err){ //callback for when doSomething ends
+        //       do something else with variable;
+        //     }
+
+
+        // for(var i = 0; i < length; i++) {
+        //     var variable = variables[i];
+        //     otherVariable.doSomething(function(v) {
+        //         return function(err) {
+        //              /* something with v */ 
+        //             }; 
+        //         }(variable));
+        //   }
+      
+        //   for(var i = 0; i < length; i++){
+        //     var variable = variables[i];
+        //     (function(var){ //start wrapper code
+        //       otherVariable.doSomething(var, function(err){ //callback for when doSomething ends
+        //         do something else with var; //please note that i'm dealing with var here, not variable
+        //       }
+        //     })(variable);//passing in variable to var here
+        //   }
+
+
+
+
+
+
+    },
+
+   
     //The approach is to use a cost function to do the regression
     //We divide the segment into before peak / after peak, regress those, and use those as initial values for the full function regression
     logistic_regression_with_decay: function(index, segment, _curve) {
+        "use strict";
+
 
         var y_data = this.graphs[index].graph_data_obj.dataY;
         var x_data = this.graphs[index].graph_data_obj.dataX;
@@ -695,7 +841,7 @@ const SPICY_COVID_NS = {
             var top = Math.max(...y);
             var riser = Math.min(...y);
         }
-
+        riser = 0;
         // inform(y);
 
         // if (this.filled_graphs) { //completely, 100%, have no idea, why this is needed for filled graphs -_-
@@ -721,16 +867,16 @@ const SPICY_COVID_NS = {
             return _peak;
         }
 
-        peak = highest_peak(y);
-        y_rise = y.slice(0, (peak.x+1<y.length) ? peak.x+1 : y.length);
-        x_rise = x.slice(0, (peak.x+1<x.length) ? peak.x+1 : x.length);
+        var peak = highest_peak(y);
+        var y_rise = y.slice(0, (peak.x+1<y.length) ? peak.x+1 : y.length);
+        var x_rise = x.slice(0, (peak.x+1<x.length) ? peak.x+1 : x.length);
 
-        y_decay = y.slice(peak.x);
-        x_decay = x.slice(peak.x);
+        var y_decay = y.slice(peak.x);
+        var x_decay = x.slice(peak.x);
 
         if (segment.multiplier) { //look at slope, top, and riser again because now we have peak location
             segment.direction = this.do_linear_regression_graph(index, peak.x+x_off, x.length+x_off);
-            if (y_decay.length < this.crop) { //the end curve is so close to the end of the dataset, just assume its positive.
+            if (y_decay.length < this.crop || this.crop <= 0) { //the end curve is so close to the end of the dataset, just assume its positive.
                 segment.direction.slope = 1;
             }
             else if (segment.direction.slope < 0) { //We have an overall negative slope
@@ -742,8 +888,9 @@ const SPICY_COVID_NS = {
         }
         
         // inform(riser, y);
+        //This is depecrated by this.fun_base
         if (segment.multiplier) {
-            var fun = function(_x,P) { // Logistic rise and decay used for regression
+            var func = function(_x,P) { // Logistic rise and decay used for regression
                 return [].map.call(_x, function(xi) {
                     var base = xi;
 
@@ -758,7 +905,7 @@ const SPICY_COVID_NS = {
             };
         }
         else {
-            var fun = function(_x,P) { // Logistic rise and decay used for regression
+            var func = function(_x,P) { // Logistic rise and decay used for regression
                 return [].map.call(_x, function(xi) {
                     var base = xi;
 
@@ -773,7 +920,7 @@ const SPICY_COVID_NS = {
             };
         }
 
-        var rise_fun = function(_x,P) { //Only the rise before the peak
+        var rise_func = function(_x,P) { //Only the rise before the peak
             return [].map.call(_x, function(xi) {
                 var base = xi;
 
@@ -785,7 +932,7 @@ const SPICY_COVID_NS = {
             });
         };
 
-        var decay_fun = function(_x,P) { //Only the decay after the peak
+        var decay_func = function(_x,P) { //Only the decay after the peak
             return [].map.call(_x, function(xi) {
                 var base = xi;
 
@@ -802,34 +949,41 @@ const SPICY_COVID_NS = {
 
 
 
-        //Attempt to add bias to start, peaks, and ends just to see if it improved the regression (it didn't)
+        //Attempt to add bias to start, peaks, and ends just to see if it improved the regression
         // var _length = Math.floor(y.length / 3 +1);
-        // var y_add_on = [...Array(_length)].fill(y[0]);
+
+        // //Start
+        // var y_add_on = [...Array(_length)].fill(0);
         // var x_add_on = [...Array(_length)].fill(x[0]);
 
         // y = y_add_on.concat(y);
         // x = x_add_on.concat(x);
+        // if (!segment.multiplier && !segment.last) { //don't do this for the last curves
+        //     // Peak
+        //     y_add_on = [...Array(_length)].fill(y[peak.x]);
+        //     x_add_on = [...Array(_length)].fill(x[peak.x]);
+        //     // inform(x_add_on, y_add_on);
+        //     var x_t = [];
+        //     var y_t = [];
+        //     y = x_t.concat(y.slice(0, (peak.x+1<y.length) ? peak.x+1 : y.length), y_add_on, y.slice(peak.x));
+        //     x = y_t.concat(x.slice(0, (peak.x+1<y.length) ? peak.x+1 : x.length), x_add_on, x.slice(peak.x));
 
-        // y_add_on = [...Array(_length)].fill(y[peak.x]);
-        // x_add_on = [...Array(_length)].fill(y[peak.x]);
-        // // inform(x_add_on, y_add_on);
-        // x_t = [];
-        // y_t = [];
-        // y = x_t.concat(y.slice(0, (peak.x+1<y.length) ? peak.x+1 : y.length), y_add_on, y.slice(peak.x));
-        // x = y_t.concat(x.slice(0, (peak.x+1<y.length) ? peak.x+1 : x.length), x_add_on, x.slice(peak.x));
+        //     //End
 
-        // y_add_on = [...Array(_length)].fill(y[y.length-1]);
-        // x_add_on = [...Array(_length)].fill(x[x.length-1]);
+        //     y_add_on = [...Array(_length)].fill(0);
+        //     x_add_on = [...Array(_length)].fill(x[x.length-1]);
 
-        // y = y.concat(y_add_on);
-        // x = x.concat(x_add_on);
+        //     y = y.concat(y_add_on);
+        //     x = x.concat(x_add_on);
+        // }
         // inform(x,y);
+
         var graph_color = this.graphs[this.graphs.length-1].graph_data_obj.getAttribute("strokeColor");
 
         // inform(y_decay[0], y_rise[x_rise.length-1]);
         var Parms = [];
         if (y_rise.length > this.minimum_partial) {
-            Parms_rise = fminsearch(rise_fun, [this.logistic_parameters[0], this.logistic_parameters[1]], x_rise, y_rise, {maxIter:6000,display:false});
+            var Parms_rise = fminsearch(rise_func, [this.logistic_parameters[0], this.logistic_parameters[1]], x_rise, y_rise, {maxIter:6000,display:false});
             // Parms[0] = Parms_rise[0];
             // Parms[1] = Parms_rise[1];
             Parms.push(Parms_rise[0]);
@@ -848,7 +1002,7 @@ const SPICY_COVID_NS = {
                 Parms.push(1);
             }
             else if (y_decay.length > this.minimum_partial) { //Otherwise if our peak is far enough away from the end of the dataset do a decay run:
-                Parms_decay = fminsearch(decay_fun, [this.logistic_parameters[2], this.logistic_parameters[3]], x_decay, y_decay, {maxIter:6000,display:false});
+                Parms_decay = fminsearch(decay_func, [this.logistic_parameters[2], this.logistic_parameters[3]], x_decay, y_decay, {maxIter:6000,display:false});
                 Parms.push(Parms_decay[0]);
                 Parms.push(Parms_decay[1]);
 
@@ -860,7 +1014,7 @@ const SPICY_COVID_NS = {
             }
         }
         else if (y_decay.length > this.minimum_partial) { //decay run for a non-end run
-            Parms_decay = fminsearch(decay_fun, [this.logistic_parameters[2], this.logistic_parameters[3]], x_decay, y_decay, {maxIter:6000,display:false});
+            var Parms_decay = fminsearch(decay_func, [this.logistic_parameters[2], this.logistic_parameters[3]], x_decay, y_decay, {maxIter:6000,display:false});
             Parms.push(Parms_decay[0]);
             Parms.push(Parms_decay[1]);
         }
@@ -873,7 +1027,9 @@ const SPICY_COVID_NS = {
  
         inform("Defaults:", this.logistic_parameters);
         inform("Adjusted:", Parms, [top, riser]);
-        Parms = fminsearch(fun, Parms, x, y, {maxIter:2000,display:false});
+        // this.generated_curves_sum.Parms = fminsearch(SPICY_COVID_NS.func_base_sum, Parms_collect, x, y, {maxIter:100,display:false, step_style: true, func2: SPICY_COVID_NS.func_base, curves: SPICY_COVID_NS.generated_curves});
+       
+        Parms = fminsearch(func, Parms, x, y, {maxIter:200,display:false});
         // Parms = fminsearch(fun, this.logistic_parameters, x, y, {maxIter:2000,display:false});
         inform("Adjusted Twice:", Parms, [top, riser]);
         // Parms = fminsearch(fun, Parms, x, y, {maxIter:2000,display:false});
@@ -889,30 +1045,32 @@ const SPICY_COVID_NS = {
         this.generated_curves[_curves_index].x_offset = x_off;
         this.generated_curves[_curves_index].length = length;
   
-        if (!segment.multiplier) {
-            this.generated_curves[_curves_index].curve = this.board.create('functiongraph',
-                [function(_x){ return SPICY_COVID_NS.fun_base(_x, _curves_index);},
-                    SPICY_COVID_NS.generated_curves[_curves_index].start+1, // a < x (left bounds)
-                    SPICY_COVID_NS.generated_curves[_curves_index].end-1 // b < x (right bounds)
-                ], {
-                    strokeColor: (!segment.color) ? graph_color : segment.color,
-                    dash: 5,
-                    strokewidth: 2
-                }
-            );
-        }
-        else {
-            this.generated_curves[_curves_index].curve = this.board.create('functiongraph',
-            [function(_x){ return SPICY_COVID_NS.fun_base(_x, _curves_index, segment.multiplier);},
-                SPICY_COVID_NS.generated_curves[_curves_index].start+1, // a < x (left bounds)
-                SPICY_COVID_NS.generated_curves[_curves_index].end-1 // b < x (right bounds)
-            ], {
-                strokeColor: (!segment.color) ? graph_color : segment.color,
-                dash: 5,
-                strokewidth: 2
-            }
-        );
-        }
+        //Draw graphs
+
+        // if (!segment.multiplier) {
+        //     this.generated_curves[_curves_index].curve = this.board.create('functiongraph',
+        //         [function(_x){ return SPICY_COVID_NS.fun_base(_x, this.generated_curves[_curves_index]);},
+        //             SPICY_COVID_NS.generated_curves[_curves_index].start, // a < x (left bounds)
+        //             SPICY_COVID_NS.generated_curves[_curves_index].end // b < x (right bounds)
+        //         ], {
+        //             strokeColor: (!segment.color) ? graph_color : segment.color,
+        //             dash: 5,
+        //             strokewidth: 2
+        //         }
+        //     );
+        // }
+        // else {
+        //     this.generated_curves[_curves_index].curve = this.board.create('functiongraph',
+        //     [function(_x){ return SPICY_COVID_NS.fun_base(_x, this.generated_curves[_curves_index], segment.multiplier);},
+        //         SPICY_COVID_NS.generated_curves[_curves_index].start, // a < x (left bounds)
+        //         SPICY_COVID_NS.generated_curves[_curves_index].end // b < x (right bounds)
+        //     ], {
+        //         strokeColor: (!segment.color) ? graph_color : segment.color,
+        //         dash: 5,
+        //         strokewidth: 2
+        //     }
+        // );
+        // }
         
         
         
@@ -925,13 +1083,275 @@ const SPICY_COVID_NS = {
         var divider_str = "\n*****************************\n\n*****************************\n";
         $('#console').val(str + divider_str + $('#console').val());
 
+        return Parms;
+
     },
 
+    segment_curves: function() {
+
+        var _index = this.graphs.length-1;
+        
+        if (this.filled_graphs) this.remove_tidy_endpoints(this.graphs[_index].graph_data_obj);
+        // var plateau_threshold = this.get_max_graph_affected(_index) / plateau_threshold;
+        var _data = this.graphs[_index].graph_data_obj;
+        var _data_length = _data.dataX.length;
+
+        var threshold = this.days_threshold; //Minimum days to detect a valley / peak
+
+        var bounding_box = this.board.getBoundingBox(); //returns 4 element array: 0-left, 1-upper, 2-right, 3-lower
+
+        var _scale = (bounding_box[2] - bounding_box[0]) / (bounding_box[1] - bounding_box[3]); //normally rise/run, but since we're transforming data it's 1/(rise/run) anyway
+        var to_radians = function(angle) {
+            return angle * Math.PI/180;
+        }
+        var to_degrees = function(angle) {
+            return angle * 180/Math.PI;
+        }
+        var angle_threshold = this.angle_threshold;
+        angle_threshold = to_radians(angle_threshold); //convert to radians
+        var run_reg = 0;
+        // inform((angle_threshold * 180/Math.PI)/ _scale);
+        // inform(_scale);
+
+        var peaks_and_valleys = [];
+        var run_start_x = 0;
+        var peak_index = 0;
+
+
+
+        var check_for_valley = function(__data, start_x, end_x) {
+            "use strict";
+            var valley = {x:0, y:Infinity};
+            for (var i = start_x; i < end_x; i ++)
+            {
+                if (__data.dataY[i] <= valley.y) {
+                    valley.x = i;
+                    valley.y = __data.dataY[i];
+                }
+            }
+            return valley;
+        }
+
+        // var avg_slope = 0;
+
+        var find_peak = function(__data, start_x, end_x) { //some intelligent peak detection, based on angle of linear regression of entire segment first, failing that average of bisection linear regression at the midpoint
+            "use strict";
+            if (end_x > __data.dataX.length) end_x = __data.dataX.length;
+            var just_find_peak = false;
+            // angle_threshold = (angle_threshold * Math.PI/180)
+            var segment_lin_reg = SPICY_COVID_NS.do_linear_regression_graph(_index, start_x, end_x);
+            var segment_angle = Math.atan(segment_lin_reg.slope * _scale);
+            var _angle_threshold = to_radians(SPICY_COVID_NS.segment_angle_threshold);
+            if (segment_angle >= _angle_threshold || segment_angle < -_angle_threshold) {
+                just_find_peak = true;
+            }
+
+            var peak = {x:0, y:0};
+
+            if (just_find_peak) {
+
+                for (var i = start_x; i < end_x; i ++)
+                {
+                    if (__data.dataY[i] >= peak.y) {
+                        peak.x = i;
+                        peak.y = __data.dataY[i];
+                    }
+                }
+            }
+            else {
+                var midpoint = (start_x + end_x) / 2;
+                var lin_reg1 = SPICY_COVID_NS.do_linear_regression_graph(_index, start_x, midpoint);
+                var lin_reg2 = SPICY_COVID_NS.do_linear_regression_graph(_index, midpoint, end_x);
+                peak.x = midpoint;
+
+                var start = start_x;
+                var end = end_x;
+                var func_line = function(x, slope, intercept) { //abstract a linear function
+                    return x*slope + intercept;
+                }
+                peak.y = (func_line(end, lin_reg1.slope, lin_reg1.intercept) + func_line(start, lin_reg2.slope, lin_reg2.intercept))/2;
+                inform(start_x,midpoint, end_x, to_degrees(segment_angle));
+                inform(lin_reg1, lin_reg2);
+                var a = func_line(end, lin_reg1.slope, lin_reg1.intercept);
+                inform(a);
+                inform(func_line(end, lin_reg1.slope, lin_reg1.intercept),func_line(start, lin_reg2.slope, lin_reg2.intercept));
+            }
+            return peak;
+        }
+        
+        for (var x = 0; x < _data_length; x++) {
+            var current_y = _data.dataY[x];
+            // threshold = (x > this.days_threshold) ? this.days_threshold : x;
+
+            if (current_y > 0 && run_start_x == 0) { //Begin Runs
+                run_start_x = x;
+                if (x > threshold) x += threshold; // skip ahead
+            }
+
+            if (x - run_start_x >= threshold  || x == _data_length-1) {
+                run_reg = this.do_linear_regression_graph(_index, x - threshold, x); // find slope of last (x - threshold) run
+                var x2 = x;
+                var x2_length = (x2 + this.predicted_days < _data_length) ? x2 + this.predicted_days : _data_length
+                var projected_run_reg = this.do_linear_regression_graph(_index, x2, x2_length); // find slope of forward run
+ 
+                // inform(projected_run.slope, run_reg.slope, angle_threshold);
+                // inform(Math.atan(lin_reg.slope - run_slope.slope));
+                if ((Math.atan(projected_run_reg.slope * _scale) - Math.atan(run_reg.slope * _scale)  >= angle_threshold) || x == _data_length-1) { //We're past 30 from prior slope, so close off that section, and start next one
+                    // inform(Math.atan(projected_run.slope)*180/Math.PI, Math.atan(run_reg.slope)*180/Math.PI, -angle_threshold*180/Math.PI);
+                    var valley = check_for_valley(_data, x2, x2_length);
+                    x = valley.x;
+                    peaks_and_valleys.push({})
+                    inform(run_start_x);
+                    peaks_and_valleys[peak_index].start = run_start_x;
+                    // if (x == _data_length-1 || x == _data_length) peaks_and_valleys[peak_index].end = Infinity;
+                    // else peaks_and_valleys[peak_index].end = x;
+                    if (_data_length - x < this.crop || (this.crop == 0 && _data_length - x < 14)) { //if we're a (14 days) from the end just call it the last curve and break
+                        peaks_and_valleys[peak_index].end = _data_length + this.prediction_length; //Could also set to Infinity;
+                        peaks_and_valleys[peak_index].peak = find_peak(_data, run_start_x, peaks_and_valleys[peak_index].end);
+                        // avg_slope = this.do_linear_regression_graph(_index, run_start_x, _data_length-this.crop);
+                        break;
+                    }
+                    else {
+                        peaks_and_valleys[peak_index].end = x;
+                        peaks_and_valleys[peak_index].peak = find_peak(_data, run_start_x, x);
+                        
+                    // if (_data.dataY[peaks_and_valleys[peak_index].start] < _data.dataY[x]) peaks_and_valleys[peak_index].riser = current_y;
+                    // else peaks_and_valleys[peak_index].riser = _data.dataY[peaks_and_valleys[peak_index].start];
+                    
+                        peak_index ++;
+                        run_start_x = x;
+                        x = (x + threshold >= _data_length-1) ? x : x + threshold;
+                    }
+
+                }
+
+            }
+
+        }
+      
+        segments = [];
+        var potential_root = function(_i, side) {
+            var x1 = peaks_and_valleys[_i].peak.x;
+            var y1 = peaks_and_valleys[_i].peak.y;
+            var root_angle_threshold = this.root_angle_threshold;
+            if (side == "right") {
+                var x2 = peaks_and_valleys[_i+1].peak.x
+                // var slope = y1/(x2-x1);
+                // var angle = Math.atan(slope * _scale)
+                var new_slope = Math.tan(to_radians(-root_angle_threshold));
+                var new_x =  y1/new_slope+x1
+                if (new_x < x2) return new_x;
+                else return x2;
+
+            }
+            else {
+                if (_i == 0 && peaks_and_valleys[_i].start == 0) var x2 = -Infinity; //For China
+                else var x2 = peaks_and_valleys[_i-1].peak.x
+                // var slope = y1/(x1-x2);
+                // var angle = Math.atan(slope * _scale)
+                var new_slope = Math.tan(to_radians(root_angle_threshold));
+                var new_x = y1/-new_slope+x1
+                if (new_x > x2) return new_x;
+                else return x2;
+            }
+        }
+        
+        inform(peaks_and_valleys);
+        if (peak_index == 0) {
+            alert("No curves found! Have you tried reducing or disabling moving day average?");
+            if (this.filled_graphs) this.add_tidy_endpoints(this.graphs[_index].graph_data_obj);
+            return;
+        }
+
+        //Re-organize segments into "roots"
+        for (var i = 0; i < peaks_and_valleys.length; i++) {
+
+            if (i == 0) { //First curve
+                // var r1 = potential_root(0, "left"); //normally we don't have to do this, but for China we do.
+                var r2 = potential_root(0, "right");
+                segments.push({root1: peaks_and_valleys[0].start, root2: r2, peak: peaks_and_valleys[0].peak});
+            }
+            else if (i == peaks_and_valleys.length-1) { //Last curve
+                var r1 = potential_root(i, "left");
+                segments.push({root1: r1, peak: peaks_and_valleys[i].peak});
+            }
+            else { // all other curves
+                var r1 = potential_root(i, "left");
+                var r2 = potential_root(i, "right");
+                segments.push({root1: r1, root2: r2, peak: peaks_and_valleys[i].peak});
+            }
+        }
+
+        inform(segments);
+        inform(peaks_and_valleys);
+        // if (!peaks_and_valleys[peak_index].peak_x) peaks_and_valleys.pop(); // If we don't have a peak for the last index remove the whole index
+        return;
+
+
+
+
+        // add three duplicates of last curve to show different scenarios (2x, 4x, and 10x top end):
+
+        // var graph_color = this.graphs[this.graphs.length-1].graph_data_obj.getAttribute("strokeColor");
+        // peaks_and_valleys.push({start: peaks_and_valleys[peak_index].start,
+        //                         end:  peaks_and_valleys[peak_index].end,
+        //                         multiplier: 2,
+        //                         color: this.increase_brightness(graph_color, 20),// this.generated_curve_colors[2]
+        //                         extra: 1
+        // });
+
+        // peaks_and_valleys.push({start: peaks_and_valleys[peak_index].start,
+        //                         end:  peaks_and_valleys[peak_index].end,
+        //                         multiplier: 4,
+        //                         color: this.increase_brightness(graph_color, 40),
+        //                         extra: 2
+        // });
+
+        // peaks_and_valleys.push({start: peaks_and_valleys[peak_index].start,
+        //                         end:  peaks_and_valleys[peak_index].end,
+        //                         multiplier: 10,
+        //                         color: this.increase_brightness(graph_color, 60),
+        //                         extra: 3
+        // });
+
+        peaks_and_valleys[peaks_and_valleys.length-1].last = true;
+        inform(peaks_and_valleys);
+        var Parms_collection = [];
+        
+        this.generated_curves = [];
+        peaks_and_valleys.forEach(function(element, i) {
+            inform("-------Curve " + (i+1));
+            var ret_value = SPICY_COVID_NS.logistic_regression_with_decay(_index, element, i+1);
+            for (var i = 0; i < ret_value.length; i++) {
+                Parms_collection.push(Number(ret_value[i]));
+            }
+            // Parms_collection.push(ret_value.forEach(function(el){ return el;}));
+        });
+
+        this.logistic_regression_with_decay_one_curve(peaks_and_valleys, Parms_collection);
+
+        if (this.filled_graphs) this.add_tidy_endpoints(this.graphs[_index].graph_data_obj);
+        // var c3 = JXG.joinCurves(SPICY_COVID_NS.board, [SPICY_COVID_NS.generated_curves[0].curve, SPICY_COVID_NS.generated_curves[1].curve], 
+        //     {   strokeColor:'black', 
+        //         strokeWidth:3, 
+        //         fillColor:'yellow', fillOpacity:0.2
+        //     });
+
+        
+        return;
+    },
+
+    generate_curves2: function() {
+        this.segment_curves();
+    },
     //Determines segments (curves/waves/surges) by a chosen additional angle of slope, then does the logistic regression for each segment
     generate_curves: function() {
+        "use strict";
        
         //My 2.0 pseudo code for peak / valley finding:
         // Easy: look for runs where slope is 30 degrees counterclockwise from prior run, then close off prior run and start new one.
+
+        //3.0 look for angle, but also check for valleys and end there, instead.
         
         var _index = this.graphs.length-1;
         
@@ -956,8 +1376,33 @@ const SPICY_COVID_NS = {
         var run_start_x = 0;
         var peak_index = 0;
 
+        var check_for_valley = function(__data, start_x, end_x) {
+            "use strict";
+            var valley = {x:0, y:Infinity};
+            for (var i = start_x; i < end_x; i ++)
+            {
+                if (__data.dataY[i] <= valley.y) {
+                    valley.x = i;
+                    valley.y = __data.dataY[i];
+                }
+            }
+            return valley;
+        }
+
         // var avg_slope = 0;
 
+        var find_peak = function(__data, start_x, end_x) {
+            "use strict";
+            var peak = {x:0, y:0};
+            for (var i = start_x; i < end_x; i ++)
+            {
+                if (__data.dataY[i] >= peak.y) {
+                    peak.x = i;
+                    peak.y = __data.dataY[i];
+                }
+            }
+            return peak;
+        }
         for (var x = 0; x < _data_length; x++) {
             var current_y = _data.dataY[x];
             // threshold = (x > this.days_threshold) ? this.days_threshold : x;
@@ -977,33 +1422,32 @@ const SPICY_COVID_NS = {
                 // inform(Math.atan(lin_reg.slope - run_slope.slope));
                 if ((Math.atan(projected_run_reg.slope * _scale) - Math.atan(run_reg.slope * _scale)  >= angle_threshold) || x == _data_length-1) { //We're past 30 from prior slope, so close off that section, and start next one
                     // inform(Math.atan(projected_run.slope)*180/Math.PI, Math.atan(run_reg.slope)*180/Math.PI, -angle_threshold*180/Math.PI);
+                    var valley = check_for_valley(_data, x2, x2_length);
+                    x = valley.x;
                     peaks_and_valleys.push({})
                     inform(run_start_x);
                     peaks_and_valleys[peak_index].start = run_start_x;
                     // if (x == _data_length-1 || x == _data_length) peaks_and_valleys[peak_index].end = Infinity;
                     // else peaks_and_valleys[peak_index].end = x;
-                    if (_data_length - x < this.crop ) { //if we're a (14 days) from the end just call it the last curve and break
+                    if (_data_length - x < this.crop || (this.crop == 0 && _data_length - x < 14)) { //if we're a (14 days) from the end just call it the last curve and break
                         peaks_and_valleys[peak_index].end = _data_length + this.prediction_length; //Could also set to Infinity;
+                        peaks_and_valleys[peak_index].peak = find_peak(_data, run_start_x, peaks_and_valleys[peak_index].end);
                         // avg_slope = this.do_linear_regression_graph(_index, run_start_x, _data_length-this.crop);
                         break;
                     }
                     else {
                         peaks_and_valleys[peak_index].end = x;
-
+                        peaks_and_valleys[peak_index].peak = find_peak(_data, run_start_x, x);
+                        
                     // if (_data.dataY[peaks_and_valleys[peak_index].start] < _data.dataY[x]) peaks_and_valleys[peak_index].riser = current_y;
                     // else peaks_and_valleys[peak_index].riser = _data.dataY[peaks_and_valleys[peak_index].start];
                     
                         peak_index ++;
                         run_start_x = x;
-                        avg_slope = 0;
+                        var avg_slope = 0;
                         x = (x + threshold >= _data_length-1) ? x : x + threshold;
                     }
-                                // var peak_range = peaks_and_valleys[peak_index].peak_x * 2
-            // peaks_and_valleys.push({valley_start: peaks_and_valleys[peak_index].valley_start, 
-            //                         peak_x: peak_range,
-            //                         valley_end: peaks_and_valleys[peak_index].valley_end, 
-            //                         riser: peaks_and_valleys[peak_index].riser
-            //                     });
+
                 }
 
             }
@@ -1022,34 +1466,45 @@ const SPICY_COVID_NS = {
         }
 
 
-        // add two duplicates of last curve to show different scenarios (2x, 4x, and 10x top end):
-        var graph_color = this.graphs[this.graphs.length-1].graph_data_obj.getAttribute("strokeColor");
-        peaks_and_valleys.push({start: peaks_and_valleys[peak_index].start,
-                                end:  peaks_and_valleys[peak_index].end,
-                                multiplier: 2,
-                                color: this.increase_brightness(graph_color, 20),// this.generated_curve_colors[2]
-                                extra: 1
-        });
+        // add three duplicates of last curve to show different scenarios (2x, 4x, and 10x top end):
 
-        peaks_and_valleys.push({start: peaks_and_valleys[peak_index].start,
-                                end:  peaks_and_valleys[peak_index].end,
-                                multiplier: 4,
-                                color: this.increase_brightness(graph_color, 40),
-                                extra: 2
-        });
+        // var graph_color = this.graphs[this.graphs.length-1].graph_data_obj.getAttribute("strokeColor");
+        // peaks_and_valleys.push({start: peaks_and_valleys[peak_index].start,
+        //                         end:  peaks_and_valleys[peak_index].end,
+        //                         multiplier: 2,
+        //                         color: this.increase_brightness(graph_color, 20),// this.generated_curve_colors[2]
+        //                         extra: 1
+        // });
 
-        peaks_and_valleys.push({start: peaks_and_valleys[peak_index].start,
-                                end:  peaks_and_valleys[peak_index].end,
-                                multiplier: 10,
-                                color: this.increase_brightness(graph_color, 60),
-                                extra: 3
-        });
+        // peaks_and_valleys.push({start: peaks_and_valleys[peak_index].start,
+        //                         end:  peaks_and_valleys[peak_index].end,
+        //                         multiplier: 4,
+        //                         color: this.increase_brightness(graph_color, 40),
+        //                         extra: 2
+        // });
 
+        // peaks_and_valleys.push({start: peaks_and_valleys[peak_index].start,
+        //                         end:  peaks_and_valleys[peak_index].end,
+        //                         multiplier: 10,
+        //                         color: this.increase_brightness(graph_color, 60),
+        //                         extra: 3
+        // });
+
+        peaks_and_valleys[peaks_and_valleys.length-1].last = true;
         inform(peaks_and_valleys);
+        var Parms_collection = [];
+        
+        this.generated_curves = [];
         peaks_and_valleys.forEach(function(element, i) {
             inform("-------Curve " + (i+1));
-            SPICY_COVID_NS.logistic_regression_with_decay(_index, element, i+1)
+            var ret_value = SPICY_COVID_NS.logistic_regression_with_decay(_index, element, i+1);
+            for (var i = 0; i < ret_value.length; i++) {
+                Parms_collection.push(Number(ret_value[i]));
+            }
+            // Parms_collection.push(ret_value.forEach(function(el){ return el;}));
         });
+
+        this.logistic_regression_with_decay_one_curve(peaks_and_valleys, Parms_collection);
 
         if (this.filled_graphs) this.add_tidy_endpoints(this.graphs[_index].graph_data_obj);
         // var c3 = JXG.joinCurves(SPICY_COVID_NS.board, [SPICY_COVID_NS.generated_curves[0].curve, SPICY_COVID_NS.generated_curves[1].curve], 
@@ -1066,6 +1521,7 @@ const SPICY_COVID_NS = {
 
     //Create a blank graph with dimensions defined by the first region's data (Alabama)
     initialize_graph: function() {
+        "use strict";
 
         // this.regions_of_interest.pop();
         var context = this.get_context();
@@ -1175,11 +1631,12 @@ const SPICY_COVID_NS = {
         // this.board.on('update', this.update_axes());
 
         this.max_affected.y = 0; //reset so adding deaths doesn't show a large y-axis bounding box.
-        delete temp_region;
+        // delete temp_region;
     },
 
     //Updates axes and arrows
     update_axes: function() {
+        "use strict";
         //this.board.update();
 
         //AXES:
@@ -1236,6 +1693,7 @@ const SPICY_COVID_NS = {
 
 
     add_axes: function() {
+        "use strict";
 
         //rather than duplicate the x and y position calculations, just set them to zero and call update_axes():
 
@@ -1282,6 +1740,7 @@ const SPICY_COVID_NS = {
     },
 
     remove_graph: function(_region_name) {
+        "use strict";
         var _context = this.get_context();
         for (var i = 0; i < this.graphs.length; i++) {
             if (this.graphs[i].graph_region_label_obj.plaintext.search(_region_name) != -1) {
@@ -1299,6 +1758,7 @@ const SPICY_COVID_NS = {
     },
 
     clear_all: function(_reset_bounds) {
+        "use strict";
         if (_reset_bounds) {
             this.max_affected.x = 0;
             this.max_affected.y = 0;
@@ -1325,6 +1785,7 @@ const SPICY_COVID_NS = {
 
     //search graphs[] for duplicates by region name and context (filename)
     duplicate_graph_check: function(_region, _context) {
+        "use strict";
         var src = _region;
 
         // if (_selected_region_parent_data[_index].context != _context) return false;
@@ -1342,6 +1803,7 @@ const SPICY_COVID_NS = {
 
     //Calls constructor for graphs[] where each graph's information is stored (including JSXGraph's) typically used with regions_of_interest[]
     add_region_to_graph: function(_selected_region_parent_data, _index, _context) {
+        "use strict";
   
         //most cases we will automate the index to the last index of the array
         if (_index == -1) _index = _selected_region_parent_data.length-1;
@@ -1351,9 +1813,9 @@ const SPICY_COVID_NS = {
 
         //Used for keeping track of the highest value for bounding box settings
         var header_factor = 8; // e.g. when set to 5 adds 20% to the top.
-        new_max_affected = this.get_max_base_affected(_selected_region, _selected_region.columns.affected_column);
-        peak = new_max_affected.y;
-        run = new_max_affected.x;
+        var new_max_affected = this.get_max_base_affected(_selected_region, _selected_region.columns.affected_column);
+        var peak = new_max_affected.y;
+        var run = new_max_affected.x;
         var return_max_affected = new_max_affected;
 
 
@@ -1475,7 +1937,7 @@ const SPICY_COVID_NS = {
 
         // board.on('update', function(){console.log('updated', point.X(), point.Y())});
 
-        construct = new this.graph_status_obj(region_txt_obj, graph, arrow_obj, -1, my_color, arrow_peak, _context, return_max_affected); // set rolling avg to -1 so its updated later at update_rolling_average()
+        var construct = new this.graph_status_obj(region_txt_obj, graph, arrow_obj, -1, my_color, arrow_peak, _context, return_max_affected); // set rolling avg to -1 so its updated later at update_rolling_average()
  
 
         var graph_index = this.graphs.length; //since we check it before the push() it will equal current .length
@@ -1499,7 +1961,8 @@ const SPICY_COVID_NS = {
     },
 
     arrange_region_labels: function() {
-        _graph_max_affected = [];
+        "use strict";
+        var _graph_max_affected = [];
         
         var _box = this.board.getBoundingBox(); //returns 4 element array: left, upper, right, lower
         var _vert_space = _box[1];
@@ -1557,8 +2020,8 @@ const SPICY_COVID_NS = {
         for (var i = 0; i < this.graphs.length; i++) {
             var i2 = i+1;
 
-            x = left;
-            y = _vert_space  - (_vert_space / row_size * i);
+            var x = left;
+            var y = _vert_space  - (_vert_space / row_size * i);
 
             while (y < min) { // move over to another column.
                 y += _vert_space;
@@ -1585,6 +2048,7 @@ const SPICY_COVID_NS = {
     
     //Clip by active graph data potentially put through rolling average / other transformations versus underlying actual data.
     clip_bounding_box_by_graph: function() {
+        "use strict";
         var _max_y = 0;
         if (this.graphs.length == 0) return;
         for (var i = 0; i <this.graphs.length; i++) {
@@ -1600,6 +2064,7 @@ const SPICY_COVID_NS = {
     },
 
     remove_top_regions: function(_num_regions, _num_days, _style){
+        "use strict";
 
         if (this.run < 1) this.run = 1;
 
@@ -1655,12 +2120,14 @@ const SPICY_COVID_NS = {
     },
 
     find_my_index: function(_region, _context) {
+        "use strict";
         for (var i = 0; i < this.regions_of_interest.length; i++) {
             if (this.regions_of_interest[i].region == _region && this.regions_of_interest[i].context == _context) return i;
         }
     },
 
     recalculate_peaks_totals: function(){
+        "use strict";
         for (var i = 0; i < this.graphs.length; i++) {
 
             data = this.get_max_base_affected(this.regions_of_interest[i], this.regions_of_interest[i].split_context.affected);
@@ -1674,12 +2141,13 @@ const SPICY_COVID_NS = {
     },
 
     do_linear_regression: function(index, _num_days) {
+        "use strict";
 
         var _lin_reg_sumx = 0;
         var _lin_reg_sumx2 = 0;
         var _lin_reg_sumy = 0;
         var _lin_reg_sumxy = 0;
-        var ret_value = {slope: 0, y_intercept: 0};
+        var ret_value = {slope: 0, intercept: 0};
         var run_length = _num_days;
 
         var _context = this.regions_of_interest[index].columns.affected_column;
@@ -1699,18 +2167,20 @@ const SPICY_COVID_NS = {
           }
           if (_lin_reg_sumx2 - _lin_reg_sumx * _lin_reg_sumx == 0) return ret_value; //avoid divide by 0
           ret_value.slope = (run_length * _lin_reg_sumxy - _lin_reg_sumx * _lin_reg_sumy) / (run_length * _lin_reg_sumx2 - _lin_reg_sumx * _lin_reg_sumx)
-          ret_value.y_intercept = (_lin_reg_sumy - ret_value.slope * _lin_reg_sumx) / run_length
+          ret_value.intercept = (_lin_reg_sumy - ret_value.slope * _lin_reg_sumx) / run_length
           return ret_value;
     },
 
     do_linear_regression_graph: function(index, _start, _end) {
+        "use strict";
 
         var _lin_reg_sumx = 0;
         var _lin_reg_sumx2 = 0;
         var _lin_reg_sumy = 0;
         var _lin_reg_sumxy = 0;
-        var ret_value = {slope: 0, y_intercept: 0};
-        
+        var ret_value = {slope: 0, intercept: 0};
+        _start = Math.floor(_start);
+        _end = Math.floor(_end);
 
         if (_start < 0) _start = 0;
         if (_end > this.graphs[index].graph_data_obj.dataY.length) _end = this.graphs[index].graph_data_obj.dataY.length;
@@ -1730,11 +2200,12 @@ const SPICY_COVID_NS = {
           }
           if (_lin_reg_sumx2 - _lin_reg_sumx * _lin_reg_sumx == 0) return ret_value; //avoid divide by 0
           ret_value.slope = (run_length * _lin_reg_sumxy - _lin_reg_sumx * _lin_reg_sumy) / (run_length * _lin_reg_sumx2 - _lin_reg_sumx * _lin_reg_sumx)
-          ret_value.y_intercept = (_lin_reg_sumy - ret_value.slope * _lin_reg_sumx) / run_length
+          ret_value.intercept = (_lin_reg_sumy - ret_value.slope * _lin_reg_sumx) / run_length
           return ret_value;
     },
 
     add_top_regions: function(_num_regions, _num_days, _style){
+        "use strict";
         var _context = this.get_context();
         var _region_list = [];
         var _prev_region = "";
@@ -1784,7 +2255,7 @@ const SPICY_COVID_NS = {
                 _total += _data[i][_affected_column];
             }
             else {
-                _slope = (run_length * _lin_reg_sumxy - _lin_reg_sumx * _lin_reg_sumy) / (run_length * _lin_reg_sumx2 - _lin_reg_sumx * _lin_reg_sumx)
+                var _slope = (run_length * _lin_reg_sumxy - _lin_reg_sumx * _lin_reg_sumy) / (run_length * _lin_reg_sumx2 - _lin_reg_sumx * _lin_reg_sumx)
                 _y_intercept = (_lin_reg_sumy - _slope * _lin_reg_sumx) / run_length
                 _region_list.push({ region:_data[i-1][_region_name_column],
                                     total:_total,
@@ -1852,6 +2323,7 @@ const SPICY_COVID_NS = {
 
     
     update_region_label: function(index) {
+        "use strict";
         var _selected_graph_region = this.graphs[index];
         var max_affected = this.get_max_graph_affected(index);
         _selected_graph_region.graph_region_label_obj.setCoords(max_affected.x,max_affected.y);
@@ -1859,6 +2331,7 @@ const SPICY_COVID_NS = {
     },
 
     update_arrow_peak: function(index) {
+        "use strict";
         var _selected_graph_region = this.graphs[index];
         var max_affected = this.get_max_graph_affected(index);
         var fill_offset = this.filled_graphs == true ? -1 : 0;                               
@@ -1868,6 +2341,7 @@ const SPICY_COVID_NS = {
 
     //Actual rolling average to data algo
     transform_range: function(data, breadth) {
+        "use strict";
         var range = [];
         var parent_result_array = []
 
@@ -1878,13 +2352,13 @@ const SPICY_COVID_NS = {
             var end = x + breadth;
             
             if (start < 0) { 
-                x_left_divisor = x;
+                var x_left_divisor = x;
                 start = 0;
             }
             else x_left_divisor = breadth
 
             if (end > data.length) {
-                x_right_divisor = data.length - x;
+                var x_right_divisor = data.length - x;
                 end = data.length;
             }
             else x_right_divisor = breadth
@@ -1905,6 +2379,7 @@ const SPICY_COVID_NS = {
 
     //Helper function for particular graph data resetting to regions_of_interest and calls transform_range to apply rolling average
     apply_rolling_average: function(_data, index) {
+        "use strict";
             // if (this.filled_graphs) this.remove_tidy_endpoints(this.graphs[index].graph_data_obj)
             this.graphs[index].graph_data_obj.dataX = [...Array(_data.data.length).keys()];
             this.graphs[index].graph_data_obj.dataY = this.extract_affected(_data.data, _data.columns.affected_column); //we need to extract data before next line
@@ -1914,6 +2389,7 @@ const SPICY_COVID_NS = {
 
     //Return affected people (deaths or cases data) 
     extract_affected: function(data, column) {
+        "use strict";
         var y = [];
 
         for (var i = 0; i < data.length; i++) {
@@ -1924,6 +2400,7 @@ const SPICY_COVID_NS = {
 
     //Globally updates rolling average changes after a change
     update_rolling_average: function(_data, changed) {
+        "use strict";
         
         if (this.rolling_day_average_enabled) {
             for (var i = 0; i < this.graphs.length; i++) {
@@ -1956,6 +2433,7 @@ const SPICY_COVID_NS = {
 
     //Wrapper for board update so we can adjust axes
     update: function() {
+        "use strict";
         // if (this.x_axis_style != 'dates')
         this.update_axes();
         this.board.update();
@@ -1963,6 +2441,7 @@ const SPICY_COVID_NS = {
 
     //This function is just to make the fillcolor look correct/good
     add_tidy_endpoints: function(graph) {
+        "use strict";
         if (!this.filled_graphs) return; //If checkbox unchecked return
         graph.dataX.splice(0, 0, 0); //insert 0 at start of array
         graph.dataX.push(graph.dataX.length-1); //append a duplicate x value at the end of our data 
@@ -1975,7 +2454,8 @@ const SPICY_COVID_NS = {
 
     //This function is to remove the added tidy points
     remove_tidy_endpoints: function(graph) {
-        if (!this.filled_graphs) return; //if graph doesn't have endpoints return
+        "use strict";
+        if (!this.filled_graphs) return; 
         graph.dataX.splice(graph.dataX.length-1,1); //DO NOT CHANGE THIS TO .length-1 !!
         graph.dataX.splice(0,1);
 
@@ -2070,12 +2550,13 @@ const SPICY_COVID_NS = {
    
     
     get_max_base_affected: function(_dataset, column_name) {
+        "use strict";
 
-        result_point = new this.point(0, 0);
+        var result_point = new this.point(0, 0);
         
 
-        _data = _dataset;
-        _total = 0;
+        var _data = _dataset;
+        var _total = 0;
 
         // for (var i = 0; i < _data.data.length; i++) {
         for (var i = 0; i < this.run; i++) {
@@ -2094,7 +2575,8 @@ const SPICY_COVID_NS = {
     },
 
     get_max_graph_affected: function(index) {
-          result_point = new this.point(0, 0);
+        "use strict";
+          var result_point = new this.point(0, 0);
         //   _total = 0; //Dont need totals of graph data with rolling avg applied
 
           for (var i = 0; i < this.graphs[index].graph_data_obj.dataX.length; i++) {
@@ -2155,7 +2637,7 @@ const SPICY_COVID_NS = {
         this.graph_status_obj.parent = this;
         this.generate_curves.parent = this;
         this.logistic_regression_with_decay.parent = this;
-        this.fun_base.parent = this;
+        this.func_base.parent = this;
         this.number_to_string.parent = this;
 
         delete this.init;
@@ -2358,6 +2840,7 @@ $(document).ready(function() {
     var arrange_selection = document.getElementById('ranking_dropdown');
     
     slope_selection.addEventListener('input', function (val) {
+        "use strict";
         var _val = val.target.value;
         if (_val == "Highest") arrange_selection.value = "Total";
         else if (_val == "Fastest Rising") arrange_selection.value = "Slope";
@@ -2464,7 +2947,7 @@ $(document).ready(function() {
      //Event handler for clip bounding box
      $('#gen_curves').click(function() {
         "use strict";
-        SPICY_COVID_NS.generate_curves(); 
+        SPICY_COVID_NS.generate_curves2(); 
     });
 
     //Event handler for clip bounding box
@@ -2475,6 +2958,7 @@ $(document).ready(function() {
 
     //Event for window size change:
     $( window ).resize(function() {
+        "use strict";
         // var window_size = $(window).innerWidth;
         var window_size = document.body.clientWidth;;
         // inform(window_size);
@@ -2502,6 +2986,7 @@ $(document).ready(function() {
 
     
     function redo_graphs() {
+        "use strict";
         var _region_list = SPICY_COVID_NS.regions_of_interest;
         var buffer = [];
         for (var i = 0; i< _region_list.length; i++) { //buffer the regions
