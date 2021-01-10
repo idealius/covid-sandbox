@@ -17,13 +17,17 @@
 <body>
 <script>
     var current_date = new Date();
-    var current_date_month = current_date.getMonth() + 1;
+    var current_date_month = String(current_date.getMonth() + 1);
     current_date_year = String(current_date.getFullYear());
     current_date_year = current_date_year.slice(-2);
     var current_date_date = String(current_date.getDate());
 
-    if (String(current_date_date.length) < 2) {
+    if (current_date_date.length < 2) {
         current_date_date = String('0' + String(current_date_date));
+    }
+
+    if (current_date_month.length < 2) {
+        current_date_month = String('0' + String(current_date_month));
     }
     
     var str = String(current_date_month + String(current_date_date)) + current_date_year;
