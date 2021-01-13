@@ -1,14 +1,22 @@
 ![Logo](/img/Spicy_Covid_Graphs_Logo.png)
 
-Link: (http://covid19graphs.42web.io/index.html)
+Link: (http://covid19graphs.42web.io/index.html) <- Bookmark this manually, as it redirects to a new page every day to ensure the datasets are updated.
+
+Datasets will normally be updated around 12:20 AM CST or by next afternoon. I do not have a dedicated server to update the data so sometimes it will be late.
+
+Datasets hinge on Johns Hopkins accuracy and file formats remaining the same. For instance around early December New Jersey's data was amplified to a great extent, errorneously, over one day. Johns Hopkins fixed the error within hours. In that spirit, I am not responsible for data misrepresentations in part or whole whether the fault of myself, the software, or their sources. 
 
 ### Purpose:
 When doing personal risk assessment of COVID-19 in different contexts like local and global regions, other dashboards did not make it easy see regions overlayed and per population total with adjustable moving averages. To rectify this would involve a lot of copy/pasting and data transposing in spreadsheets like Excel. The Python project (also mine) listed in sources below is used to transpose Johns Hopkins data and convert it to rates. This makes the data easy to use in Tableau, Excel, etc.
 
 This project then takes that data outputted from the Python project (which also converts the data to .js files) and allows one to quickly overlay different regions - by user selection - or by ranking across N number of days for cases and deaths.
 
+Please note that I am not a disease expert, nor even a very accomplished programmer. This is a project I made for my own use, but also decided to share for those who might like to play with it. Use at your own risk.
+
 ### Features:
 Always shows data as percentage of population, so comparisons between regions is easier.
+
+Zoom and panning.
 
 Rolling average slider.
 
@@ -18,15 +26,17 @@ Totals printed to text area for ranking comparison across N number of days.
 
 Ranking in the graph by total, peak, or slope acrss N days.
 
-Ability to add N top regions in a dataset by last N number of days. For seeing, say the bottom 10 regions, one can add the top N regions, then remove the (N - 10) regions.
+Ability to add N top regions in a dataset by last N number of days.
+
+For seeing, say the bottom 10 regions, one can add the top N regions, then remove the (N - 10) regions.
 
 ### FAQ:
-Q. TBD 
+Q. When does the text area below the graphs update?
 
-A. TBD
+A. When you Show the top N regions across the last X days. It prints out different numbers depending which option you choose for "regions by" -- "Highest" -> Total deaths % across X days, or "Fastest Rising" -> Linearly regressed slope over X days.
 
 ### Major Bugs
-1/10/2021: BUG with west virginia and virginia and BUG Congo DR of Congo because names are inclusive
+1/10/2021: BUG with west virginia and virginia and BUG Congo DR of Congo because names are inclusive (FIXED: 1/13/2021)
 12/1/2020: Firefox does not change the logo responsively to window.resize
 
 ### Recently Fixed Bugs
@@ -34,6 +44,7 @@ A. TBD
 
 ### Superficial Bugs
 12/1/2020: Mobile footer displays partly off the footer gradient
+1/13/2021: Sometimes dragging a region label doesn't update the pointing line position. This might be a bug in JSXGraph. It can be resolved by hovering over the label a few more times.
 
 ### Potential Enhancements
 Zoom out show letters for months instead of abbreviations - Added
@@ -63,6 +74,8 @@ Consider refactoring alt_axes to not include sub-functions for better memory man
 Consider adding checkbox to switch x-axis styles
 
 ### Limitations
+Some of the Label positions and when they update could be better.
+
 No hospitalization data.
 
 Graphs are not displayed well on mobile platforms in general because the screen width & height of phones.

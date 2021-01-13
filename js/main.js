@@ -94,12 +94,13 @@ var SPICY_COVID_NS = {
 
     //Graphs template, data structure used like:
     // this.graphs[graph_index].graph_data_obj.dataX[day_index]
-    graph_status_obj: function(_region_obj, _data_obj, _arrow_obj,  _rolling, _color, _arrow_peak, _context, _max) {
+    graph_status_obj: function(_name, _region_obj, _data_obj, _arrow_obj,  _rolling, _color, _arrow_peak, _context, _max) {
         "use strict";
+        this.name = _name;
         this.graph_region_label_obj = _region_obj; //JSXGraph object for region label on graph
         this.graph_data_obj = _data_obj; //JSXGraph object for graph data
         this.graph_arrow_obj = _arrow_obj;
-        this.rolling_day_avg = _rolling; //Bool setting for rolling data (enabled/disabled)
+        this.rolling_day_avg = _rolling; //Bool setting for rolling data (enabled/disabled) //possibly deprecated
         this.color = _color; //Color of JSXGraph region label
         this.arrow_peak = _arrow_peak; //point arrow points to
         this.context = _context;
@@ -114,7 +115,7 @@ var SPICY_COVID_NS = {
 
  
 
-    // Just some colors
+    // colors for graphs
     custom_colors: {
         0:{value:'#3348FF', gamma: 'dark'}, //blue
         1:{value:'#9133FF', gamma: 'dark'}, //purple
@@ -1791,7 +1792,8 @@ var SPICY_COVID_NS = {
         // if (_selected_region_parent_data[_index].context != _context) return false;
 
         for (var i = 0; i < this.graphs.length; i++) {
-            if (this.graphs[i].graph_region_label_obj.plaintext.search(src) != -1) {
+            // if (this.graphs[i].graph_region_label_obj.plaintext.search(src) != -1) { //bugs with virginia / west virigina and congo /dr of congo
+            if (this.graphs[i].name == src) {
                 // inform(this.graphs[i]);
                 if (_context == this.graphs[i].context) return true;
                 // inform (_context);
@@ -1937,7 +1939,7 @@ var SPICY_COVID_NS = {
 
         // board.on('update', function(){console.log('updated', point.X(), point.Y())});
 
-        var construct = new this.graph_status_obj(region_txt_obj, graph, arrow_obj, -1, my_color, arrow_peak, _context, return_max_affected); // set rolling avg to -1 so its updated later at update_rolling_average()
+        var construct = new this.graph_status_obj(_selected_region.region, region_txt_obj, graph, arrow_obj, -1, my_color, arrow_peak, _context, return_max_affected); // set rolling avg to -1 so its updated later at update_rolling_average()
  
 
         var graph_index = this.graphs.length; //since we check it before the push() it will equal current .length
@@ -1977,7 +1979,7 @@ var SPICY_COVID_NS = {
             
             if (this.ranking == "Total") {
                 //we use temp variable here because we only want the total from the regions list, the peaks we want from the graphs.
-                _temp_max_affected = this.get_max_base_affected(this.regions_of_interest[i], this.regions_of_interest[i].columns.affected_column);
+                var _temp_max_affected = this.get_max_base_affected(this.regions_of_interest[i], this.regions_of_interest[i].columns.affected_column);
                 // inform(_temp_max_affected);
                 _temp_max_affected.x = _graph_max_affected[i].x //not sure we need x & y here
                 _temp_max_affected.y = _graph_max_affected[i].y
@@ -2073,7 +2075,7 @@ var SPICY_COVID_NS = {
         if (_num_regions > this.graphs.length) _num_regions = this.graphs.length;
         else if (_num_regions < 1) _num_regions = 1;
 
-        _graphs_list = []; //checklist of graphs to be removed
+        var _graphs_list = []; //checklist of graphs to be removed
         for (var i = 0; i < this.regions_of_interest.length; i++) {
             var _total = 0;
             // var _context = this.interpret_context(this.regions_of_interest[i].context);
