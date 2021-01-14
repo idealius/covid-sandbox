@@ -45,6 +45,7 @@ I am determined to finish this however, as it was one of the main reasons for ma
 
 ### Major Bugs
 1/10/2021: BUG with west virginia and virginia and BUG Congo DR of Congo because names are inclusive (FIXED: 1/13/2021)
+
 12/1/2020: Firefox does not change the logo responsively to window.resize
 
 ### Recently Fixed Bugs
@@ -52,6 +53,7 @@ I am determined to finish this however, as it was one of the main reasons for ma
 
 ### Superficial Bugs
 12/1/2020: Mobile footer displays partly off the footer gradient
+
 1/13/2021: Sometimes dragging a region label doesn't update the pointing line position. This might be a bug in JSXGraph. It can be resolved by hovering over the label a few more times.
 
 ### Potential Enhancements
