@@ -29,7 +29,7 @@ fminsearch=function(func,Parm0,x,y,Opt, func2){// fun = function(x,Parm)
 	if(typeof(Opt.display)=='undefined'){Opt.display=true};
 
 
-	if(!Opt.objFun) { //Cost function
+	if(!Opt.objfunc) { //Cost function
 		Opt.objfunc=function(y, yp) {
 			return y.map( function(yi, i) {
 				// inform(yi, yp);
@@ -76,7 +76,7 @@ fminsearch=function(func,Parm0,x,y,Opt, func2){// fun = function(x,Parm)
 					curve.Parms = [P1[j], P1[j+1], P1[j+2], P1[j+3]];
 					if (Opt.func2(curve.x_offset, curve) > 0 || Opt.func2(curve.x_offset+x.length+20, curve) > 0) {
 						skip = true;
-						inform ("skipped");
+						// inform ("skipped");
 					}
 				}
 				// if (j % 2 == 1) // Looking for Exponents based on position in P
@@ -113,7 +113,7 @@ fminsearch=function(func,Parm0,x,y,Opt, func2){// fun = function(x,Parm)
 					inform(Opt.func2(curve.x_offset, curve));
 					if (Opt.func2(curve.x_offset, curve) > 0 || Opt.func2(curve.x_offset+x.length+20, curve) > 0) {
 						skip = true;
-						inform ("skipped");
+						// inform ("skipped");
 					}
 				}
 				// if (j % 2 == 1) // Looking for Exponents based on position in P
