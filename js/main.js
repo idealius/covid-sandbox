@@ -2312,8 +2312,8 @@ var SPICY_COVID_NS = {
 
         for (var i = 0; i < _full_list.length; i++) {
             // if (_style == "Fastest Rising") str = str + (i + 1) + '. ' + _full_list[i].region + ': y = (' + Number.parseFloat(_full_list[i].slope).toPrecision(5) +')x + ' + Number.parseFloat(_full_list[i].y_intercept).toPrecision(5) + '\n';
-            if (_style == "Fastest Rising") str = str + (i + 1) + '. ' + _full_list[i].region + ' ' + Number.parseFloat(_full_list[i].slope).toPrecision(5) + '\n';
-            else str = str + (i + 1) + '. ' + _full_list[i].region + ' ' + Number.parseFloat(_full_list[i].total).toPrecision(5) + '%\n';
+            if (_style == "Fastest Rising") str = str + (i + 1) + '. ' + _full_list[i].region + ' ' + this.number_to_string(Number.parseFloat(_full_list[i].slope).toPrecision(12)) + '\n';
+            else str = str + (i + 1) + '. ' + _full_list[i].region + ' ' + number_to_string(Number.parseFloat(_full_list[i].total).toPrecision(12)) + '%\n';
         }
 
         var divider_str = "\n*****************************\n\n*****************************\n";
