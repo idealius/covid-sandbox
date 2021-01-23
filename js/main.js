@@ -39,7 +39,7 @@ var SPICY_COVID_NS = {
     x_axis_style: 'dates',
 
     ranking: "Total",
-    days: 15,
+    days: 21,
 
     months_abbreviated: false,
     months_run: 0, // doesnt need to fill up namespace
@@ -48,19 +48,31 @@ var SPICY_COVID_NS = {
     xaxis: {},
     abbv_xaxis: {},
 
-    logistic_gap: 21, //x buffer we use to tinker with logistic regression / mainly prevents large vertical lines at 0 index of generated curves
-    days_threshold: 28, //minimum section length for linear regression comparisons
+    //Generate Curve vars:
+    num_iterations: 250, //fminsearch iterations
+    // enforce_minimum_peak: true,
+    logistic_gap: 5, //x buffer we use to tinker with logistic regression / mainly prevents large vertical lines at 0 index of generated curves
+    days_threshold: 10, //minimum section length for linear regression comparisons
     angle_threshold: 30, //angle in degrees to start distinguishing for wave separation logic
     root_angle_threshold: 45,
     segment_angle_threshold: 30,
     predicted_days: 21, //minimum run length ahead of current run to compare via linear regression
     minimum_partial: 1, //minimum length of a rise or decay run to train our subsequent logistic regression algorithm
-    logistic_parameters: [2**21, 1, 2**21, 1], //default base exponentiation multipler (rise), exponent (rise), base multipler (decay), exponent (decay) 
+    // logistic_parameters: [2**21, 1, 2**21, 1], //default base exponentiation multipler (rise), exponent (rise), base multipler (decay), exponent (decay) 
     crop: 0, //days to ignore at end of curve generation because of delayed reporting
     prediction_length: 30 * 3, //Can also set to Infinity for the prediction waves
+    
+    //Eval / constraints for regression:
+    strict_peaks: false,
+    no_negative_y: false,
+    root_limits: false,
+    minimum_peaks: false,
+    left_root_threshold: 2000,
+    right_root_threshold: 2000,
 
     generated_curves_sum: [],
     generated_curves: [],
+    //              .Parms, .top, .start, .end, .x_offset, .length;
 
     //For holding updating graph regions on window.resize()
     hold_resize: false,
@@ -608,7 +620,7 @@ var SPICY_COVID_NS = {
     increase_brightness:function(hex, percent){
         "use strict";
         // strip the leading # if it's there
-        inform(hex);
+        // inform(hex);
         hex = hex.replace(/^\s*#|\s*$/g, '');
     
         // convert 3 char codes --> 6, e.g. `E0F` --> `EE00FF`
@@ -659,17 +671,17 @@ var SPICY_COVID_NS = {
     },
 
      // Base logistic regression equation function /w decay 
-     func_base: function(xi, gen_curve, multiplier) {
+     func_base: function(xi, gen_curve) {
         "use strict";
         // inform(gen_curve, curve_index);
         var P = gen_curve.Parms;
-        var top = gen_curve.top ;
-        var riser = gen_curve.riser;
-        if (!gen_curve.x_offset) gen_curve.x_offset = 0;
-        var x_off = gen_curve.x_offset;
+
+
+        var top = P[4];
+        if (!gen_curve.start) gen_curve.x_offset = 0;
+        var x_off = gen_curve.start;
 
         var base = xi - x_off + SPICY_COVID_NS.logistic_gap;
-        var length = gen_curve.length;
 
         var first_order = 1 + P[0]*base**P[1];
 
@@ -677,12 +689,9 @@ var SPICY_COVID_NS = {
 
         // inform (test);
         if (first_order == NaN || second_order == NaN) return 0;
-        else {
-            if (multiplier)
-                var ret_value = (top-riser) / first_order - (top-riser) / second_order + (((length - base) > 0) ? ((length - base) / (length) * riser) : 0);
-            else
-                var ret_value = (top-riser) / first_order - (top-riser) / second_order + riser;
-        } 
+
+        var ret_value = top / first_order - top / second_order;
+ 
         return ret_value;
         // return (top + riser) / (1 + P[0]*(xi + x_off)**Math.abs(P[1])) - (top + riser) / (1 + P[2]*P[3]**-(xi + x_off)) + riser;
     },
@@ -691,18 +700,25 @@ var SPICY_COVID_NS = {
     func_base_sum: function(xi, P) {
         "use strict";
         // var P = SPICY_COVID_NS.generated_curves_sum.Parms;
-        var curves_num = SPICY_COVID_NS.generated_curves_sum.curves_num;
+        var curves_num = SPICY_COVID_NS.generated_curves.length;
+        // inform(curves_num);
         // inform(P);
         var result = 0;
         for (var i = 0; i < curves_num; i ++) {
-            var x_off = SPICY_COVID_NS.generated_curves[i].x_offset;
-            // if (xi < x_off + SPICY_COVID_NS.logistic_gap) continue;
+            var x_off = SPICY_COVID_NS.generated_curves[i].start;
+            //if (xi < x_off + SPICY_COVID_NS.logistic_gap || xi > SPICY_COVID_NS.generated_curves[i].end + SPICY_COVID_NS.logistic_gap) continue;
             var base = xi - x_off + SPICY_COVID_NS.logistic_gap; //- peaks_and_valleys.start + this.logistic_gap;
-            var index = i * curves_num;
-            var top = SPICY_COVID_NS.generated_curves_sum.peaks_and_valleys[i].peak.y;
+            var index = i * 5; //5 terms
+            // var top = SPICY_COVID_NS.generated_curves_sum.peaks_and_valleys[i].peak.y;
+            var top = P[index+4];
+            if (top <= 0 ) continue;
+            // var res = top/(1 + P[index]*base**P[index+1]) - top/(1 + P[index+2]*base**P[index+3]);
+            //t/(1+m(x+x_off)**g) - t/(1+a(x+x_off)**c)
             var res = top/(1 + P[index]*base**P[index+1]) - top/(1 + P[index+2]*base**P[index+3]);
+            if (res > 10000) { // this logs bad number of terms for index
+                inform("curve:" + i + ", result:" + res, top);
+            }
             if (res > 0) {
-                // inform(res);
                 result += res;
             }
         }
@@ -710,39 +726,94 @@ var SPICY_COVID_NS = {
 
     },
 
-    logistic_regression_with_decay_one_curve: function(peaks_and_valleys, Parms_collect) {
-        "use strict";
-        var curves_num = peaks_and_valleys.length;
+    eval_curve: function(i, terms, Parms) {
+        var index = Math.floor(i / terms);
+        P = [];
+        for (var t = 0; t < terms; t++) {
+            // P.push(Parms[index+t]);
+            SPICY_COVID_NS.generated_curves[index].Parms[t] = Parms[index+t];
+        }
+
+        var peak = {x:0, y:0};
+        if (!SPICY_COVID_NS.strict_peaks) {
+            for (var x = 0; x < SPICY_COVID_NS.run; x++) {
+                var new_peak = SPICY_COVID_NS.func_base(x, SPICY_COVID_NS.generated_curves[index]);
+                if (new_peak > peak.y) {
+                    peak.x = x;
+                    peak.y = new_peak;    
+                }      
+            }
+        }
+        else {
+            peak.x = SPICY_COVID_NS.generated_curves[index].top.x;
+            peak.y = SPICY_COVID_NS.generated_curves[index].top.y;
+        }
+        
+        //Enforce no < 0 y values:
+        if (SPICY_COVID_NS.no_negative_y) {
+            for (var x = 0; x < SPICY_COVID_NS.run; x++) {
+                if (SPICY_COVID_NS.func_base(x, SPICY_COVID_NS.generated_curves[index]) < 0) return true;      
+            }
+        }
+
+        //Enforce left_root > prior peak x value, right_root < next peak x value
+        if (SPICY_COVID_NS.root_limits) { // probably would be better to use curve.start and .end for roots since we precalculated those, but this eval seems too constraining anyway.
+            var left_root_limit = (index != 0) ? SPICY_COVID_NS.generated_curves[index-1].top.x : false;
+            
+            if (left_root_limit) {
+                var initial_guess = (peak.x+left_root_limit)/2;
+                left_root_limit -= SPICY_COVID_NS.left_root_threshold;
+                l_root = newtonsMethod(SPICY_COVID_NS.func_base, SPICY_COVID_NS.generated_curves[index], .001, initial_guess, 300, true);
+                if (isNaN(l_root) || l_root < left_root_limit || l_root > initial_guess) return true;
+            }
+            
+            var right_root_limit = (index != SPICY_COVID_NS.generated_curves.length-1) ? peak.x  : false;
+
+            if (right_root_limit) {
+                var initial_guess = (peak.x+right_root_limit)/2;
+                right_root_limit += SPICY_COVID_NS.right_root_threshold;
+                r_root = newtonsMethod(SPICY_COVID_NS.func_base, SPICY_COVID_NS.generated_curves[index], .001, initial_guess, 300, true);
+                // if (isNaN(r_root)) return true;
+                // if (index == 0) inform(r_root, right_root_limit, initial_guess);
+                if (isNaN(r_root) || r_root > right_root_limit || r_root < initial_guess) return true;
+            }
+        }
+        
+        //Enforce minimum peak:
+        if (SPICY_COVID_NS.minimum_peaks) {
+            if (SPICY_COVID_NS.func_base(peak.x, SPICY_COVID_NS.generated_curves[index]) < peak.y * SPICY_COVID_NS.minimum_peak) return true;
+        }
+
+
+        return false;
+    },
+
+    logistic_regression_with_decay_one_curve: function(Parms_collect) {
+        // "use strict";
+        var curves_num = this.generated_curves.length-1;
         var graph_index = this.graphs.length-1;
 
         var y = this.graphs[graph_index].graph_data_obj.dataY;
         var x = this.graphs[graph_index].graph_data_obj.dataX;
-        // var top = Math.max(...y);
 
-        //if we dont have parms lets generate some based on default values
-        //Parms_collect = !Parms_collect;
-        if (!Parms_collect) {
-            var Parms_collect = [];
-            for (var i = 0; i < curves_num; i++) {
-                this.logistic_parameters.forEach(element => Parms_collect.push(element));
-                // Parms_collect.push(.01);
-            }
-        }
 
-        // this.generated_curves_sum.Parms = Parms_collect;
-        this.generated_curves_sum.curves_num = curves_num;
-        this.generated_curves_sum.peaks_and_valleys = peaks_and_valleys;
+        this.generated_curves_sum.Parms = Parms_collect;
         
-
-
         inform(Parms_collect);
-        this.generated_curves_sum.Parms = fminsearch(SPICY_COVID_NS.func_base_sum, Parms_collect, x, y, {maxIter:100,display:false, step_style: true, func2: SPICY_COVID_NS.func_base, curves: SPICY_COVID_NS.generated_curves});
+        var ret = fminsearch(SPICY_COVID_NS.func_base_sum, Parms_collect, x, y, {maxIter:this.num_iterations,display:false, step_style: true, terms: 5, eval_func:SPICY_COVID_NS.eval_curve });
+        // while (this.cull_negative_curves())
+        // {
+        //     var ret = fminsearch(SPICY_COVID_NS.func_base_sum, Parms_collect, x, y, {maxIter:this.num_iterations/4,display:false, step_style: true, terms: 5, eval_func:SPICY_COVID_NS.eval_curve });
+        // }
+        this.generated_curves_sum.Parms = ret.P;
         inform(this.generated_curves_sum.Parms );
 
         var graph_color = this.graphs[this.graphs.length-1].graph_data_obj.getAttribute("strokeColor");
+        var light_graph_color = this.increase_brightness(graph_color, 75);
+
         this.generated_curves_sum.curve = this.board.create('functiongraph',
         [function(_x){ return SPICY_COVID_NS.func_base_sum(_x, SPICY_COVID_NS.generated_curves_sum.Parms)},
-            SPICY_COVID_NS.generated_curves_sum.peaks_and_valleys[0].start, // a < x (left bounds)
+            SPICY_COVID_NS.generated_curves[0].start, // a < x (left bounds)
             x.length+SPICY_COVID_NS.prediction_length // b < x (right bounds)
         ], {
             strokeColor: graph_color,
@@ -750,14 +821,14 @@ var SPICY_COVID_NS = {
             strokewidth: 2
         });
 
-        //Draw underlying curves:
+        // Draw underlying curves:
         // inform(this.generated_curves);
 
         for (var curve_index = 0; curve_index < this.generated_curves.length; curve_index++) {
-        
-            for (var i = 0; i < 4; i ++) { //might not be needed, oddly
+            var parms_length = this.generated_curves[curve_index].Parms.length
+            for (var i = 0; i < parms_length; i ++) { 
                 // inform(this.generated_curves[curve_index].Parms);
-                this.generated_curves[curve_index].Parms[i] = this.generated_curves_sum.Parms[4*curve_index+i];
+                this.generated_curves[curve_index].Parms[i] = this.generated_curves_sum.Parms[parms_length*curve_index+i];
 
             }
             var curve = this.generated_curves[curve_index];
@@ -766,327 +837,55 @@ var SPICY_COVID_NS = {
                 // [function(_x){ return SPICY_COVID_NS.fun_base(_x, SPICY_COVID_NS.generated_curves);},
                 [function(_x){return SPICY_COVID_NS.func_base(_x, cur);},
                     0, // a < x (left bounds)
+                    // curve.start, // a < x (left bounds)
+                    // curve.end// b < x (right bounds)
                     x.length+SPICY_COVID_NS.prediction_length // b < x (right bounds)
                 ], {
-                    strokeColor: graph_color,
+                    strokeColor: light_graph_color,
                     dash: 1,
                     strokewidth: 2
                 });
             })(curve);
 
             var str = "Function for Curve " + (curve_index+1) + ":\n";
-            var top = this.number_to_string(curve.top);
             var Parms = curve.Parms.map(element => SPICY_COVID_NS.number_to_string(element)); //consider changing to forEach instead of creating new array
-            var x_off = curve.x_offset;
+            var top = this.number_to_string(Parms[4]);
+            var x_off = curve.start;
             str += "y_" + (curve_index+1) + " = " + top + "/(1+" + Parms[0] + "*(x-"+x_off+")^{"+ Parms[1] + "})-" +  top + "/(1+" + Parms[2] + "*(x-"+x_off+")^{"+ Parms[3] + "})";  
             var divider_str = "\n*****************************\n\n*****************************\n";
             $('#console').val(str + divider_str + $('#console').val());
     
-
-
         }
-        inform(this.generated_curves);
-        inform(this.generated_curves_sum.Parms);
 
-        // for(var i = 0; i < length; i++){
-        //     var variable = variables[i];
-        //     otherVariable.doSomething(variable, function(err){ //callback for when doSomething ends
-        //       do something else with variable;
-        //     }
-
-
-        // for(var i = 0; i < length; i++) {
-        //     var variable = variables[i];
-        //     otherVariable.doSomething(function(v) {
-        //         return function(err) {
-        //              /* something with v */ 
-        //             }; 
-        //         }(variable));
-        //   }
-      
-        //   for(var i = 0; i < length; i++){
-        //     var variable = variables[i];
-        //     (function(var){ //start wrapper code
-        //       otherVariable.doSomething(var, function(err){ //callback for when doSomething ends
-        //         do something else with var; //please note that i'm dealing with var here, not variable
-        //       }
-        //     })(variable);//passing in variable to var here
-        //   }
-
-
-
-
-
-
+        var str = "Sum curve:\n"
+        str += "R_squared = " + this.number_to_string(ret.r_squared) + "\n";
+        str += "R_squared (adjusted) = " + this.number_to_string(ret.adj_r_squared) + "\n";
+        var divider_str = "\n*****************************\n\n";
+        $('#console').val(str + divider_str + $('#console').val());
     },
 
-   
-    //The approach is to use a cost function to do the regression
-    //We divide the segment into before peak / after peak, regress those, and use those as initial values for the full function regression
-    logistic_regression_with_decay: function(index, segment, _curve) {
+    cull_negative_curves: function() {
         "use strict";
+        var culled = false;
+        for (var i = 0; i < this.generated_curves.length; i++) {
+            var curve = this.generated_curves[i];
+            var start = curve.start;
+            var end = curve.end;
 
-
-        var y_data = this.graphs[index].graph_data_obj.dataY;
-        var x_data = this.graphs[index].graph_data_obj.dataX;
-
-        if (segment.multiplier) { //This is for the last "predictive" curves
-            var y = y_data.slice(segment.start,segment.end-this.crop);
-            var x = x_data.slice(segment.start,segment.end-this.crop);
-            var top = Math.max(...y) * segment.multiplier;
-            var riser = Math.min(...y);//* (1 / _multiplier);
-        }
-        else { //This is for the former curves
-            var y = y_data.slice(segment.start, segment.end);
-            var x = x_data.slice(segment.start, segment.end);
-            var top = Math.max(...y);
-            var riser = Math.min(...y);
-        }
-        riser = 0;
-        // inform(y);
-
-        // if (this.filled_graphs) { //completely, 100%, have no idea, why this is needed for filled graphs -_-
-        //     y.splice(y.length-1, 1);
-        // }
-
-        // inform(y);
-
-        //Next 2 lines are to normalize the offset to help logistic exponent regression because exponential-esque regression has a tough time with high x values
-        var x_off = x[0];
-        var x = x.map( element => element - x_off + this.logistic_gap);
-        var length = x.length;
-
-        var highest_peak = function (_data) {
-            var _peak = {x:0,y:0};
-
-            for (var i = 0; i < _data.length; i++) {
-                if (_data[i] > _peak.y) {
-                    _peak.y = _data[i];
-                    _peak.x = i;
+            for (var x = start; x < end; x++) {
+                var ret = this.func_base(x, curve);
+                if (ret < 0) {
+                    culled = true;
+                    this.generated_curves.slice(i,1);
+                    i++;
+                    break;
                 }
             }
-            return _peak;
         }
-
-        var peak = highest_peak(y);
-        var y_rise = y.slice(0, (peak.x+1<y.length) ? peak.x+1 : y.length);
-        var x_rise = x.slice(0, (peak.x+1<x.length) ? peak.x+1 : x.length);
-
-        var y_decay = y.slice(peak.x);
-        var x_decay = x.slice(peak.x);
-
-        if (segment.multiplier) { //look at slope, top, and riser again because now we have peak location
-            segment.direction = this.do_linear_regression_graph(index, peak.x+x_off, x.length+x_off);
-            if (y_decay.length < this.crop || this.crop <= 0) { //the end curve is so close to the end of the dataset, just assume its positive.
-                segment.direction.slope = 1;
-            }
-            else if (segment.direction.slope < 0) { //We have an overall negative slope
-                // riser /= segment.multiplier;
-                length *= segment.multiplier;
-                top = Math.max(...y);
-            }
-            
-        }
-        
-        // inform(riser, y);
-        //This is depecrated by this.fun_base
-        if (segment.multiplier) {
-            var func = function(_x,P) { // Logistic rise and decay used for regression
-                return [].map.call(_x, function(xi) {
-                    var base = xi;
-
-                    var first_order = 1 + P[0]*base**P[1];
-
-                    var second_order =  1 + P[2]*base**P[3];
-
-                    if (first_order == NaN || second_order == NaN) return 0;
-                    else var ret_value = (top-riser) / first_order - (top-riser) / second_order + (((length - xi) > 0) ? ((length - xi) / (length) * riser) : 0);
-                    return ret_value;
-                });
-            };
-        }
-        else {
-            var func = function(_x,P) { // Logistic rise and decay used for regression
-                return [].map.call(_x, function(xi) {
-                    var base = xi;
-
-                    var first_order = 1 + P[0]*base**P[1];
-
-                    var second_order =  1 + P[2]*base**P[3];
-
-                    if (first_order == NaN || second_order == NaN) return 0;
-                    else var ret_value = (top-riser) / first_order - (top-riser) / second_order +  riser;
-                    return ret_value;
-                });
-            };
-        }
-
-        var rise_func = function(_x,P) { //Only the rise before the peak
-            return [].map.call(_x, function(xi) {
-                var base = xi;
-
-                var second_order =  1 + P[0]*base**P[1];
-
-                if (second_order == NaN) return 0;
-                else var ret_value = (top-riser) / second_order + riser;
-                return ret_value;
-            });
-        };
-
-        var decay_func = function(_x,P) { //Only the decay after the peak
-            return [].map.call(_x, function(xi) {
-                var base = xi;
-
-                var second_order =  1 + P[0]*base**P[1];
-
-                if (second_order == NaN) return 0;
-                else var ret_value = top - (top / second_order); //not including the riser here drastically improves the decay end of the curves
-                return ret_value;
-            });
-        };
-
-
-
-
-
-
-        //Attempt to add bias to start, peaks, and ends just to see if it improved the regression
-        // var _length = Math.floor(y.length / 3 +1);
-
-        // //Start
-        // var y_add_on = [...Array(_length)].fill(0);
-        // var x_add_on = [...Array(_length)].fill(x[0]);
-
-        // y = y_add_on.concat(y);
-        // x = x_add_on.concat(x);
-        // if (!segment.multiplier && !segment.last) { //don't do this for the last curves
-        //     // Peak
-        //     y_add_on = [...Array(_length)].fill(y[peak.x]);
-        //     x_add_on = [...Array(_length)].fill(x[peak.x]);
-        //     // inform(x_add_on, y_add_on);
-        //     var x_t = [];
-        //     var y_t = [];
-        //     y = x_t.concat(y.slice(0, (peak.x+1<y.length) ? peak.x+1 : y.length), y_add_on, y.slice(peak.x));
-        //     x = y_t.concat(x.slice(0, (peak.x+1<y.length) ? peak.x+1 : x.length), x_add_on, x.slice(peak.x));
-
-        //     //End
-
-        //     y_add_on = [...Array(_length)].fill(0);
-        //     x_add_on = [...Array(_length)].fill(x[x.length-1]);
-
-        //     y = y.concat(y_add_on);
-        //     x = x.concat(x_add_on);
-        // }
-        // inform(x,y);
-
-        var graph_color = this.graphs[this.graphs.length-1].graph_data_obj.getAttribute("strokeColor");
-
-        // inform(y_decay[0], y_rise[x_rise.length-1]);
-        var Parms = [];
-        if (y_rise.length > this.minimum_partial) {
-            var Parms_rise = fminsearch(rise_func, [this.logistic_parameters[0], this.logistic_parameters[1]], x_rise, y_rise, {maxIter:6000,display:false});
-            // Parms[0] = Parms_rise[0];
-            // Parms[1] = Parms_rise[1];
-            Parms.push(Parms_rise[0]);
-            Parms.push(Parms_rise[1]);
-        }
-        else {
-            Parms.push(this.logistic_parameters[0]);
-            Parms.push(this.logistic_parameters[1]);  
-        }
-        // Parms = fminsearch(fun, this.logistic_parameters, x, y, {maxIter:2000,display:false});
-        //The fminsearch function on the final pass is a bit too preferential toward slower decays, which is why we split up peak and decay passes with a 3rd final pass using their values
-        //tons of logic is going on here, but the point is for this decay to have a predictive curve at the end which predicts higher top ends for rising slope and slightly slower falls for lowering slopes
-        if (segment.multiplier) {             
-            if (segment.direction.slope > 0) { //Rising slope, start at 1:
-                Parms.push(1);
-                Parms.push(1);
-            }
-            else if (y_decay.length > this.minimum_partial) { //Otherwise if our peak is far enough away from the end of the dataset do a decay run:
-                Parms_decay = fminsearch(decay_func, [this.logistic_parameters[2], this.logistic_parameters[3]], x_decay, y_decay, {maxIter:6000,display:false});
-                Parms.push(Parms_decay[0]);
-                Parms.push(Parms_decay[1]);
-
-                //Reverse colors:
-
-                segment.color = this.increase_brightness(graph_color, (4-segment.extra) * 20);
-                
-
-            }
-        }
-        else if (y_decay.length > this.minimum_partial) { //decay run for a non-end run
-            var Parms_decay = fminsearch(decay_func, [this.logistic_parameters[2], this.logistic_parameters[3]], x_decay, y_decay, {maxIter:6000,display:false});
-            Parms.push(Parms_decay[0]);
-            Parms.push(Parms_decay[1]);
-        }
-        
-        
-        if (Parms.length < 3) { //Just in case we didnt get any hits for decay: (not sure if this is needed anymore)
-            Parms.push(this.logistic_parameters[2]);
-            Parms.push(this.logistic_parameters[3]);
-        }
- 
-        inform("Defaults:", this.logistic_parameters);
-        inform("Adjusted:", Parms, [top, riser]);
-        // this.generated_curves_sum.Parms = fminsearch(SPICY_COVID_NS.func_base_sum, Parms_collect, x, y, {maxIter:100,display:false, step_style: true, func2: SPICY_COVID_NS.func_base, curves: SPICY_COVID_NS.generated_curves});
-       
-        Parms = fminsearch(func, Parms, x, y, {maxIter:200,display:false});
-        // Parms = fminsearch(fun, this.logistic_parameters, x, y, {maxIter:2000,display:false});
-        inform("Adjusted Twice:", Parms, [top, riser]);
-        // Parms = fminsearch(fun, Parms, x, y, {maxIter:2000,display:false});
-        
-
-        this.generated_curves.push({});
-        var _curves_index = this.generated_curves.length-1;
-        this.generated_curves[_curves_index].Parms = Parms;
-        this.generated_curves[_curves_index].top = top;
-        this.generated_curves[_curves_index].riser = riser;
-        this.generated_curves[_curves_index].start = segment.start;
-        this.generated_curves[_curves_index].end = segment.end;
-        this.generated_curves[_curves_index].x_offset = x_off;
-        this.generated_curves[_curves_index].length = length;
-  
-        //Draw graphs
-
-        // if (!segment.multiplier) {
-        //     this.generated_curves[_curves_index].curve = this.board.create('functiongraph',
-        //         [function(_x){ return SPICY_COVID_NS.fun_base(_x, this.generated_curves[_curves_index]);},
-        //             SPICY_COVID_NS.generated_curves[_curves_index].start, // a < x (left bounds)
-        //             SPICY_COVID_NS.generated_curves[_curves_index].end // b < x (right bounds)
-        //         ], {
-        //             strokeColor: (!segment.color) ? graph_color : segment.color,
-        //             dash: 5,
-        //             strokewidth: 2
-        //         }
-        //     );
-        // }
-        // else {
-        //     this.generated_curves[_curves_index].curve = this.board.create('functiongraph',
-        //     [function(_x){ return SPICY_COVID_NS.fun_base(_x, this.generated_curves[_curves_index], segment.multiplier);},
-        //         SPICY_COVID_NS.generated_curves[_curves_index].start, // a < x (left bounds)
-        //         SPICY_COVID_NS.generated_curves[_curves_index].end // b < x (right bounds)
-        //     ], {
-        //         strokeColor: (!segment.color) ? graph_color : segment.color,
-        //         dash: 5,
-        //         strokewidth: 2
-        //     }
-        // );
-        // }
-        
-        
-        
-        var str = "Function for Curve " + _curve + ":\n";
-        top = this.number_to_string(top);
-        riser = this.number_to_string(riser);
-        var _end = this.number_to_string(segment.end);
-        Parms = Parms.map(element => SPICY_COVID_NS.number_to_string(element)); //consider changing to forEach instead of creating new array
-        str += "y_" + _curve + " = {x<"+_end+"} (" + top + "+" + riser + ")/(1+" + Parms[0] + "*(x-"+x_off+")^{"+ Parms[1] + "})-" + "(" + top + "+" + riser + ")/(1+" + Parms[2] + "*(x-"+x_off+")^{"+ Parms[3] + "})+" + riser;  
-        var divider_str = "\n*****************************\n\n*****************************\n";
-        $('#console').val(str + divider_str + $('#console').val());
-
-        return Parms;
+        return culled;
 
     },
+
 
     segment_curves: function() {
 
@@ -1148,16 +947,19 @@ var SPICY_COVID_NS = {
             }
 
             var peak = {x:0, y:0};
+            var just_peak = {x:0, y:0};
+
+            for (var i = start_x; i < end_x; i ++)
+            {
+                if (__data.dataY[i] >= just_peak.y) {
+                    just_peak.x = i;
+                    just_peak.y = __data.dataY[i];
+                }
+            }
 
             if (just_find_peak) {
-
-                for (var i = start_x; i < end_x; i ++)
-                {
-                    if (__data.dataY[i] >= peak.y) {
-                        peak.x = i;
-                        peak.y = __data.dataY[i];
-                    }
-                }
+                peak = just_peak;
+             
             }
             else {
                 var midpoint = (start_x + end_x) / 2;
@@ -1171,11 +973,13 @@ var SPICY_COVID_NS = {
                     return x*slope + intercept;
                 }
                 peak.y = (func_line(end, lin_reg1.slope, lin_reg1.intercept) + func_line(start, lin_reg2.slope, lin_reg2.intercept))/2;
-                inform(start_x,midpoint, end_x, to_degrees(segment_angle));
-                inform(lin_reg1, lin_reg2);
-                var a = func_line(end, lin_reg1.slope, lin_reg1.intercept);
-                inform(a);
-                inform(func_line(end, lin_reg1.slope, lin_reg1.intercept),func_line(start, lin_reg2.slope, lin_reg2.intercept));
+                if (peak.y > just_peak.y) peak = just_peak;
+                else inform("Segment algo success"); // just to see if there are any cases this is used
+                // inform(start_x,midpoint, end_x, to_degrees(segment_angle));
+                // inform(lin_reg1, lin_reg2);
+                // var a = func_line(end, lin_reg1.slope, lin_reg1.intercept);
+                // inform(a);
+                // inform(func_line(end, lin_reg1.slope, lin_reg1.intercept),func_line(start, lin_reg2.slope, lin_reg2.intercept));
             }
             return peak;
         }
@@ -1286,9 +1090,42 @@ var SPICY_COVID_NS = {
         inform(segments);
         inform(peaks_and_valleys);
         // if (!peaks_and_valleys[peak_index].peak_x) peaks_and_valleys.pop(); // If we don't have a peak for the last index remove the whole index
+        
+        segments = this.nonlinear_initial_values(segments);
+        inform(segments);
+
+        var Parms_collection = [];
+        segments.forEach(function(seg){
+            SPICY_COVID_NS.generated_curves.push({});
+            var _curves_index = SPICY_COVID_NS.generated_curves.length-1;
+            // if (!SPICY_COVID_NS.generated_curves[_curves_index].Parms)
+            SPICY_COVID_NS.generated_curves[_curves_index].Parms = [];//= seg._vector;
+
+            for (const property in seg.vector) {
+                // var obj = Number(`${seg._vector[property]}`);
+                var obj = seg.vector[property];
+                
+                obj,SPICY_COVID_NS.generated_curves[_curves_index].Parms.push(obj);
+                // console.log(`${property}: ${object[property]}`);
+                Parms_collection.push(obj);
+              }
+            SPICY_COVID_NS.generated_curves[_curves_index].top = seg.peak;
+            if (seg.root1) SPICY_COVID_NS.generated_curves[_curves_index].start = seg.root1;
+            if (seg.root2) {
+                SPICY_COVID_NS.generated_curves[_curves_index].end = seg.root2;
+                SPICY_COVID_NS.generated_curves[_curves_index].length = seg.root2-seg.root1;
+            }
+        })
+
+        inform(this.generated_curves);
+        // inform(Parms_collection);
+
+        // this.
+        this.logistic_regression_with_decay_one_curve(Parms_collection);
+
+        if (this.filled_graphs) this.add_tidy_endpoints(this.graphs[_index].graph_data_obj);
+        
         return;
-
-
 
 
         // add three duplicates of last curve to show different scenarios (2x, 4x, and 10x top end):
@@ -1342,184 +1179,52 @@ var SPICY_COVID_NS = {
         return;
     },
 
-    generate_curves2: function() {
-        this.segment_curves();
-    },
-    //Determines segments (curves/waves/surges) by a chosen additional angle of slope, then does the logistic regression for each segment
-    generate_curves: function() {
+
+    nonlinear_initial_values: function(segments) {
         "use strict";
-       
-        //My 2.0 pseudo code for peak / valley finding:
-        // Easy: look for runs where slope is 30 degrees counterclockwise from prior run, then close off prior run and start new one.
+        //x,x_{off},m,g,a,c,t
+        //t/(1+m(x+x_off)^g)-t/(1+a(x+x_off)^c)
+        var const_coef = 2*10**28;
+        var m_value = const_coef;
+        var a_value = const_coef;
 
-        //3.0 look for angle, but also check for valleys and end there, instead.
-        
-        var _index = this.graphs.length-1;
-        
-        if (this.filled_graphs) this.remove_tidy_endpoints(this.graphs[_index].graph_data_obj);
-        // var plateau_threshold = this.get_max_graph_affected(_index) / plateau_threshold;
-        var _data = this.graphs[_index].graph_data_obj;
-        var _data_length = _data.dataX.length;
-
-        var threshold = this.days_threshold; //Minimum days to detect a valley / peak
-
-        var bounding_box = this.board.getBoundingBox(); //returns 4 element array: 0-left, 1-upper, 2-right, 3-lower
-
-        var _scale = (bounding_box[2] - bounding_box[0]) / (bounding_box[1] - bounding_box[3]); //normally rise/run, but since we're transforming data it's 1/(rise/run) anyway
-    
-        var angle_threshold = this.angle_threshold;
-        angle_threshold = (angle_threshold * Math.PI/180) //convert to radians
-        var run_reg = 0;
-        // inform((angle_threshold * 180/Math.PI)/ _scale);
-        // inform(_scale);
-
-        var peaks_and_valleys = [];
-        var run_start_x = 0;
-        var peak_index = 0;
-
-        var check_for_valley = function(__data, start_x, end_x) {
-            "use strict";
-            var valley = {x:0, y:Infinity};
-            for (var i = start_x; i < end_x; i ++)
-            {
-                if (__data.dataY[i] <= valley.y) {
-                    valley.x = i;
-                    valley.y = __data.dataY[i];
-                }
-            }
-            return valley;
+        var g_value = function(x) {
+            return 28.5585/(1+(.196744*x)**-.862552)-30-(43.787/(1+(.000104269*x)**.596464) - 30);
         }
 
-        // var avg_slope = 0;
-
-        var find_peak = function(__data, start_x, end_x) {
-            "use strict";
-            var peak = {x:0, y:0};
-            for (var i = start_x; i < end_x; i ++)
-            {
-                if (__data.dataY[i] >= peak.y) {
-                    peak.x = i;
-                    peak.y = __data.dataY[i];
-                }
-            }
-            return peak;
-        }
-        for (var x = 0; x < _data_length; x++) {
-            var current_y = _data.dataY[x];
-            // threshold = (x > this.days_threshold) ? this.days_threshold : x;
-
-            if (current_y > 0 && run_start_x == 0) { //Begin Runs
-                run_start_x = x;
-                if (x > threshold) x += threshold; // skip ahead
-            }
-
-            if (x - run_start_x >= threshold  || x == _data_length-1) {
-                run_reg = this.do_linear_regression_graph(_index, x - threshold, x); // find slope of last (x - threshold) run
-                var x2 = x;
-                var x2_length = (x2 + this.predicted_days < _data_length) ? x2 + this.predicted_days : _data_length
-                var projected_run_reg = this.do_linear_regression_graph(_index, x2, x2_length); // find slope of forward run
- 
-                // inform(projected_run.slope, run_reg.slope, angle_threshold);
-                // inform(Math.atan(lin_reg.slope - run_slope.slope));
-                if ((Math.atan(projected_run_reg.slope * _scale) - Math.atan(run_reg.slope * _scale)  >= angle_threshold) || x == _data_length-1) { //We're past 30 from prior slope, so close off that section, and start next one
-                    // inform(Math.atan(projected_run.slope)*180/Math.PI, Math.atan(run_reg.slope)*180/Math.PI, -angle_threshold*180/Math.PI);
-                    var valley = check_for_valley(_data, x2, x2_length);
-                    x = valley.x;
-                    peaks_and_valleys.push({})
-                    inform(run_start_x);
-                    peaks_and_valleys[peak_index].start = run_start_x;
-                    // if (x == _data_length-1 || x == _data_length) peaks_and_valleys[peak_index].end = Infinity;
-                    // else peaks_and_valleys[peak_index].end = x;
-                    if (_data_length - x < this.crop || (this.crop == 0 && _data_length - x < 14)) { //if we're a (14 days) from the end just call it the last curve and break
-                        peaks_and_valleys[peak_index].end = _data_length + this.prediction_length; //Could also set to Infinity;
-                        peaks_and_valleys[peak_index].peak = find_peak(_data, run_start_x, peaks_and_valleys[peak_index].end);
-                        // avg_slope = this.do_linear_regression_graph(_index, run_start_x, _data_length-this.crop);
-                        break;
-                    }
-                    else {
-                        peaks_and_valleys[peak_index].end = x;
-                        peaks_and_valleys[peak_index].peak = find_peak(_data, run_start_x, x);
-                        
-                    // if (_data.dataY[peaks_and_valleys[peak_index].start] < _data.dataY[x]) peaks_and_valleys[peak_index].riser = current_y;
-                    // else peaks_and_valleys[peak_index].riser = _data.dataY[peaks_and_valleys[peak_index].start];
-                    
-                        peak_index ++;
-                        run_start_x = x;
-                        var avg_slope = 0;
-                        x = (x + threshold >= _data_length-1) ? x : x + threshold;
-                    }
-
-                }
-
-            }
-
-        }
-      
-
-        // if (!peaks_and_valleys[peak_index].peak_x) peaks_and_valleys.pop(); // If we don't have a peak for the last index remove the whole index
-   
-
-        inform(peaks_and_valleys);
-        if (peak_index == 0) {
-            alert("No curves found! Have you tried reducing or disabling moving day average?");
-            if (this.filled_graphs) this.add_tidy_endpoints(this.graphs[_index].graph_data_obj);
-            return;
+        var c_value = function(x) {
+            return -43.4139/(1+(10.2315*x)**-1.51867)-1-(-34.123/(1+(.161769*x)**-.705836)-1);
         }
 
+        var t_value = function(x) {
+            return (16.592*10**8)/(1+(120*x)**-28.6) + 1.05 + (-16.592*10**8)/(1+(.0000664533*x)**4.98018) - 1.05 +
+                   .751801/(1+(.0458953*x)**1.95495) + 15000 + 1.10375/(1+(.181357*x)**-.733152) - 14999.87; 
+        }
+        var _vector_constructor = function(_m, _g, _a, _c, _t) {
+            this.m = _m;
+            this.g = _g;
+            this.a = _a;
+            this.c = _c;
+            this.t = _t;
+        };
 
-        // add three duplicates of last curve to show different scenarios (2x, 4x, and 10x top end):
-
-        // var graph_color = this.graphs[this.graphs.length-1].graph_data_obj.getAttribute("strokeColor");
-        // peaks_and_valleys.push({start: peaks_and_valleys[peak_index].start,
-        //                         end:  peaks_and_valleys[peak_index].end,
-        //                         multiplier: 2,
-        //                         color: this.increase_brightness(graph_color, 20),// this.generated_curve_colors[2]
-        //                         extra: 1
-        // });
-
-        // peaks_and_valleys.push({start: peaks_and_valleys[peak_index].start,
-        //                         end:  peaks_and_valleys[peak_index].end,
-        //                         multiplier: 4,
-        //                         color: this.increase_brightness(graph_color, 40),
-        //                         extra: 2
-        // });
-
-        // peaks_and_valleys.push({start: peaks_and_valleys[peak_index].start,
-        //                         end:  peaks_and_valleys[peak_index].end,
-        //                         multiplier: 10,
-        //                         color: this.increase_brightness(graph_color, 60),
-        //                         extra: 3
-        // });
-
-        peaks_and_valleys[peaks_and_valleys.length-1].last = true;
-        inform(peaks_and_valleys);
-        var Parms_collection = [];
+        for (var i = 0; i < segments.length; i++) {
+            var peak_x = segments[i].peak.x - segments[i].root1;// + this.logistic_gap;
+            var _vector = new _vector_constructor(m_value, g_value(peak_x), a_value, c_value(peak_x), segments[i].peak.y*t_value(peak_x));
+            segments[i].vector = _vector;                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
+        }
         
-        this.generated_curves = [];
-        peaks_and_valleys.forEach(function(element, i) {
-            inform("-------Curve " + (i+1));
-            var ret_value = SPICY_COVID_NS.logistic_regression_with_decay(_index, element, i+1);
-            for (var i = 0; i < ret_value.length; i++) {
-                Parms_collection.push(Number(ret_value[i]));
-            }
-            // Parms_collection.push(ret_value.forEach(function(el){ return el;}));
-        });
-
-        this.logistic_regression_with_decay_one_curve(peaks_and_valleys, Parms_collection);
-
-        if (this.filled_graphs) this.add_tidy_endpoints(this.graphs[_index].graph_data_obj);
-        // var c3 = JXG.joinCurves(SPICY_COVID_NS.board, [SPICY_COVID_NS.generated_curves[0].curve, SPICY_COVID_NS.generated_curves[1].curve], 
-        //     {   strokeColor:'black', 
-        //         strokeWidth:3, 
-        //         fillColor:'yellow', fillOpacity:0.2
-        //     });
-
-        
-        return;
-
-       
+        inform(segments);
+        return segments;
     },
 
+    generate_curves: function() {
+        this.generated_curves = [];
+        this.generated_curves_sum = [];
+        this.segment_curves();
+
+    },
+ 
     //Create a blank graph with dimensions defined by the first region's data (Alabama)
     initialize_graph: function() {
         "use strict";
@@ -2638,7 +2343,6 @@ var SPICY_COVID_NS = {
         this.remove_graph.parent = this;
         this.graph_status_obj.parent = this;
         this.generate_curves.parent = this;
-        this.logistic_regression_with_decay.parent = this;
         this.func_base.parent = this;
         this.number_to_string.parent = this;
 
@@ -2946,10 +2650,10 @@ $(document).ready(function() {
         SPICY_COVID_NS.arrange_region_labels();
     });
     
-     //Event handler for clip bounding box
+     //Event handler for generating curve
      $('#gen_curves').click(function() {
         "use strict";
-        SPICY_COVID_NS.generate_curves2(); 
+        SPICY_COVID_NS.generate_curves(); 
     });
 
     //Event handler for clip bounding box

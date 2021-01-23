@@ -59,6 +59,8 @@ I am determined to finish this however, as it was one of the main reasons for ma
 ### Potential Enhancements
 A feature to save multiple layouts of graphs with unique names would be nice.
 
+A popout to show a full screen graph would also be nice.
+
 Zoom out show letters for months instead of abbreviations - Added
 
 Find way to change selected region curve on top (JSXGraph feature / limitation)
