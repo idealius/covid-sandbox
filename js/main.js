@@ -57,7 +57,7 @@ var SPICY_COVID_NS = {
     root_angle_threshold: 45,
     segment_angle_threshold: 30,
     predicted_days: 21, //minimum run length ahead of current run to compare via linear regression
-    minimum_partial: 1, //minimum length of a rise or decay run to train our subsequent logistic regression algorithm
+    minimum_partial: 14, //minimum length of a rise or decay run to train our subsequent logistic regression algorithm
     // logistic_parameters: [2**21, 1, 2**21, 1], //default base exponentiation multipler (rise), exponent (rise), base multipler (decay), exponent (decay) 
     crop: 0, //days to ignore at end of curve generation because of delayed reporting
     prediction_length: 30 * 3, //Can also set to Infinity for the prediction waves
