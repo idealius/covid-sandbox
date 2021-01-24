@@ -35,13 +35,9 @@ Q. When does the text area below the graphs update?
 
 A. When you Show the top N regions across the last X days. It prints out different numbers depending which option you choose for "regions by" -- "Highest Total" -> Total deaths % across X days, or "Fastest Rising" -> Linearly regressed slope over X days.
 
-Q. Why is the "Generate Curves" button disabled?
+Q. Why does the "Generate Curves" button say "experimental".
 
-A. You can still run it manually if you want by typing SPICY_COVID_NS.generate_curves(); into the Chrome console (F12). The elevator version is it started as (somewhat successfully) predicting the different peaks as curve segments directly, then evolved into something as a sum of curves (which is what you see now), which turned out to be less successful. Arkansas appears to work pretty well, though.
-
-It is apparent that finding a fitness function for nonlinear functions of the type I'm using (logistic) is going to take more work and I'm adding code slowly at this point (after writing 3000+ lines of code within a few months.)
-
-I am determined to finish this however, as it was one of the main reasons for making a COVID website which is good for graphing functions (JSXGraph.) I.e. stay tuned.
+A. Some combination of "I'm working on it." or, "Results are not ideal." As of now, it works pretty well with many (most?) areas having R squared values higher than .99
 
 ### Major Bugs
 1/10/2021: BUG with west virginia and virginia and BUG Congo DR of Congo because names are inclusive (FIXED: 1/13/2021)
