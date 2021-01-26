@@ -75,7 +75,7 @@ Note why some colors are outlined in mobile on main page
 
 Add Tabs or popup dialogs for more options
 
-Add curve guessing using logarthmic regression that has decay - This was added, now being reworked to be multiple curves added together for one sum curve.
+Add curve guessing using logarthmic regression that has decay - This has been added.
 
 Mobile zoom: find a way to consolidate separate vert, horiz, and diagonal two finger zooming (JSXGraph feature / limitation)
 
@@ -98,7 +98,9 @@ This project uses JQuery (https://jquery.com/) and JSXGraph (https://jsxgraph.un
 
 This project was helped tremendously by http://www.stackoverflow.com
 For the deprecated curve matching it uses a small project (fminsearch) from: https://github.com/jonasalmeida/fminsearch
-And, it may at some point include this small project which is an implementation of Newton's Method:
+(fminsearch is a function straight out of R as far as I know)
+
+And, it may at some point include this small project which is an implementation of Newton's Method (it does include the feature, but it tends to be too constraining so its disabled):
 https://gist.github.com/TragicSolitude/796f2a1725e9abf13638
 
 #### This uses my Python data transposing project
