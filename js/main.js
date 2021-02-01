@@ -65,7 +65,7 @@ var SPICY_COVID_NS = {
     //Eval / constraints for regression:
     strict_peaks: false,
     no_negative_y: false,
-    root_limits: false,
+    root_limits: false, //doesn't work well with fminsearch's sequentiality combined with dual logistic partial equations
     minimum_peaks: false,
     left_root_threshold: 2000,
     right_root_threshold: 2000,
