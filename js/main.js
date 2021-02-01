@@ -49,7 +49,7 @@ var SPICY_COVID_NS = {
     abbv_xaxis: {},
 
     //Generate Curve vars:
-    num_iterations: 250, //fminsearch iterations
+    num_iterations: 300, //fminsearch iterations
     // enforce_minimum_peak: true,
     logistic_gap: 5, //x buffer we use to tinker with logistic regression / mainly prevents large vertical lines at 0 index of generated curves
     days_threshold: 10, //minimum section length for linear regression comparisons
@@ -677,7 +677,7 @@ var SPICY_COVID_NS = {
         var P = gen_curve.Parms;
 
 
-        var top = P[4];
+        var top = P[3];
         if (!gen_curve.start) gen_curve.x_offset = 0;
         var x_off = gen_curve.start;
 
@@ -685,7 +685,7 @@ var SPICY_COVID_NS = {
 
         var first_order = 1 + P[0]*base**P[1];
 
-        var second_order =  1 + P[2]*base**P[3];
+        var second_order =  1 + P[0]*base**P[2];
 
         // inform (test);
         if (first_order == NaN || second_order == NaN) return 0;
@@ -708,13 +708,13 @@ var SPICY_COVID_NS = {
             var x_off = SPICY_COVID_NS.generated_curves[i].start;
             //if (xi < x_off + SPICY_COVID_NS.logistic_gap || xi > SPICY_COVID_NS.generated_curves[i].end + SPICY_COVID_NS.logistic_gap) continue;
             var base = xi - x_off + SPICY_COVID_NS.logistic_gap; //- peaks_and_valleys.start + this.logistic_gap;
-            var index = i * 5; //5 terms
+            var index = i * 4; //5 terms
             // var top = SPICY_COVID_NS.generated_curves_sum.peaks_and_valleys[i].peak.y;
-            var top = P[index+4];
+            var top = P[index+3];
             if (top <= 0 ) continue;
             // var res = top/(1 + P[index]*base**P[index+1]) - top/(1 + P[index+2]*base**P[index+3]);
             //t/(1+m(x+x_off)**g) - t/(1+a(x+x_off)**c)
-            var res = top/(1 + P[index]*base**P[index+1]) - top/(1 + P[index+2]*base**P[index+3]);
+            var res = top/(1 + P[index]*base**P[index+1]) - top/(1 + P[index]*base**P[index+2]);
             if (res > 10000) { // this logs bad number of terms for index
                 inform("curve:" + i + ", result:" + res, top);
             }
@@ -800,7 +800,7 @@ var SPICY_COVID_NS = {
         this.generated_curves_sum.Parms = Parms_collect;
         
         inform(Parms_collect);
-        var ret = fminsearch(SPICY_COVID_NS.func_base_sum, Parms_collect, x, y, {maxIter:this.num_iterations,display:false, step_style: true, terms: 5, eval_func:SPICY_COVID_NS.eval_curve });
+        var ret = fminsearch(SPICY_COVID_NS.func_base_sum, Parms_collect, x, y, {maxIter:this.num_iterations,display:false, step_style: true, terms: 4, eval_func:SPICY_COVID_NS.eval_curve });
         // while (this.cull_negative_curves())
         // {
         //     var ret = fminsearch(SPICY_COVID_NS.func_base_sum, Parms_collect, x, y, {maxIter:this.num_iterations/4,display:false, step_style: true, terms: 5, eval_func:SPICY_COVID_NS.eval_curve });
@@ -849,9 +849,10 @@ var SPICY_COVID_NS = {
 
             var str = "Function for Curve " + (curve_index+1) + ":\n";
             var Parms = curve.Parms.map(element => SPICY_COVID_NS.number_to_string(element)); //consider changing to forEach instead of creating new array
-            var top = this.number_to_string(Parms[4]);
-            var x_off = curve.start;
-            str += "y_" + (curve_index+1) + " = " + top + "/(1+" + Parms[0] + "*(x-"+x_off+")^{"+ Parms[1] + "})-" +  top + "/(1+" + Parms[2] + "*(x-"+x_off+")^{"+ Parms[3] + "})";  
+            var top = this.number_to_string(Parms[3]);
+            if (curve.start) var x_off = curve.start;
+            else var x_off = 0;
+            str += "y_" + (curve_index+1) + " = " + top + "/(1+" + Parms[0] + "*(x-"+x_off+")^{"+ Parms[0] + "})-" +  top + "/(1+" + Parms[1] + "*(x-"+x_off+")^{"+ Parms[2] + "})";  
             var divider_str = "\n*****************************\n\n*****************************\n";
             $('#console').val(str + divider_str + $('#console').val());
     
@@ -1186,7 +1187,6 @@ var SPICY_COVID_NS = {
         //t/(1+m(x+x_off)^g)-t/(1+a(x+x_off)^c)
         var const_coef = 2*10**28;
         var m_value = const_coef;
-        var a_value = const_coef;
 
         var g_value = function(x) {
             return 28.5585/(1+(.196744*x)**-.862552)-30-(43.787/(1+(.000104269*x)**.596464) - 30);
@@ -1200,17 +1200,16 @@ var SPICY_COVID_NS = {
             return (16.592*10**8)/(1+(120*x)**-28.6) + 1.05 + (-16.592*10**8)/(1+(.0000664533*x)**4.98018) - 1.05 +
                    .751801/(1+(.0458953*x)**1.95495) + 15000 + 1.10375/(1+(.181357*x)**-.733152) - 14999.87; 
         }
-        var _vector_constructor = function(_m, _g, _a, _c, _t) {
+        var _vector_constructor = function(_m, _g, _c, _t) {
             this.m = _m;
             this.g = _g;
-            this.a = _a;
             this.c = _c;
             this.t = _t;
         };
 
         for (var i = 0; i < segments.length; i++) {
             var peak_x = segments[i].peak.x - segments[i].root1;// + this.logistic_gap;
-            var _vector = new _vector_constructor(m_value, g_value(peak_x), a_value, c_value(peak_x), segments[i].peak.y*t_value(peak_x));
+            var _vector = new _vector_constructor(m_value, g_value(peak_x), c_value(peak_x), segments[i].peak.y*t_value(peak_x));
             segments[i].vector = _vector;                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
         }
         
