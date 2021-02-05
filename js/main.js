@@ -721,6 +721,7 @@ var SPICY_COVID_NS = {
             if (res > 0) {
                 result += res;
             }
+            // result += res;
         }
         return result;
 
@@ -1855,6 +1856,8 @@ var SPICY_COVID_NS = {
         var _lin_reg_sumy = 0;
         var _lin_reg_sumxy = 0;
         var ret_value = {slope: 0, intercept: 0};
+        if (_num_days > this.regions_of_interest[index].data.length-1) _num_days = this.regions_of_interest[index].data.length-1;
+        if (_num_days < 0) _num_days = 0;
         var run_length = _num_days;
 
         var _context = this.regions_of_interest[index].columns.affected_column;
@@ -1864,7 +1867,7 @@ var SPICY_COVID_NS = {
         
 
           for (var i = _start; i < _length; i++) {
-            var _data_var = this.regions_of_interest[index].data[i][_context]
+            var _data_var = this.regions_of_interest[index].data[i][_context];
 
             _lin_reg_sumx = _lin_reg_sumx + i;
             _lin_reg_sumx2 = _lin_reg_sumx2 + i * i;
@@ -2017,8 +2020,9 @@ var SPICY_COVID_NS = {
 
         for (var i = 0; i < _full_list.length; i++) {
             // if (_style == "Fastest Rising") str = str + (i + 1) + '. ' + _full_list[i].region + ': y = (' + Number.parseFloat(_full_list[i].slope).toPrecision(5) +')x + ' + Number.parseFloat(_full_list[i].y_intercept).toPrecision(5) + '\n';
+            
             if (_style == "Fastest Rising") str = str + (i + 1) + '. ' + _full_list[i].region + ' ' + this.number_to_string(Number.parseFloat(_full_list[i].slope).toPrecision(12)) + '\n';
-            else str = str + (i + 1) + '. ' + _full_list[i].region + ' ' + number_to_string(Number.parseFloat(_full_list[i].total).toPrecision(12)) + '%\n';
+            else str = str + (i + 1) + '. ' + _full_list[i].region + ' ' + this.number_to_string(Number.parseFloat(_full_list[i].total).toPrecision(12)) + '%\n';
         }
 
         var divider_str = "\n*****************************\n\n*****************************\n";
