@@ -49,7 +49,7 @@ var SPICY_COVID_NS = {
     abbv_xaxis: {},
 
     //Generate Curve vars:
-    num_iterations: 250, //fminsearch iterations
+    num_iterations: 3000, //fminsearch iterations
     // enforce_minimum_peak: true,
     logistic_gap: 5, //x buffer we use to tinker with logistic regression / mainly prevents large vertical lines at 0 index of generated curves
     days_threshold: 10, //minimum section length for linear regression comparisons
@@ -699,21 +699,14 @@ var SPICY_COVID_NS = {
 
     func_base_sum: function(xi, P) {
         "use strict";
-        // var P = SPICY_COVID_NS.generated_curves_sum.Parms;
         var curves_num = SPICY_COVID_NS.generated_curves.length;
-        // inform(curves_num);
-        // inform(P);
         var result = 0;
         for (var i = 0; i < curves_num; i ++) {
             var x_off = SPICY_COVID_NS.generated_curves[i].start;
-            //if (xi < x_off + SPICY_COVID_NS.logistic_gap || xi > SPICY_COVID_NS.generated_curves[i].end + SPICY_COVID_NS.logistic_gap) continue;
             var base = xi - x_off + SPICY_COVID_NS.logistic_gap; //- peaks_and_valleys.start + this.logistic_gap;
             var index = i * 5; //5 terms
-            // var top = SPICY_COVID_NS.generated_curves_sum.peaks_and_valleys[i].peak.y;
             var top = P[index+4];
             if (top <= 0 ) continue;
-            // var res = top/(1 + P[index]*base**P[index+1]) - top/(1 + P[index+2]*base**P[index+3]);
-            //t/(1+m(x+x_off)**g) - t/(1+a(x+x_off)**c)
             var res = top/(1 + P[index]*base**P[index+1]) - top/(1 + P[index+2]*base**P[index+3]);
             if (res > 10000) { // this logs bad number of terms for index
                 inform("curve:" + i + ", result:" + res, top);
@@ -721,7 +714,6 @@ var SPICY_COVID_NS = {
             if (res > 0) {
                 result += res;
             }
-            // result += res;
         }
         return result;
 
@@ -801,7 +793,15 @@ var SPICY_COVID_NS = {
         this.generated_curves_sum.Parms = Parms_collect;
         
         inform(Parms_collect);
-        var ret = fminsearch(SPICY_COVID_NS.func_base_sum, Parms_collect, x, y, {maxIter:this.num_iterations,display:false, step_style: true, terms: 5, eval_func:SPICY_COVID_NS.eval_curve });
+        var ret = fminsearch(SPICY_COVID_NS.func_base_sum, Parms_collect, x, y,
+            {   maxIter:this.num_iterations,
+                display:false,
+                step_style: true,
+                terms: 5,
+                eval_func:SPICY_COVID_NS.eval_curve,
+                target_r2: .993
+
+            });
         // while (this.cull_negative_curves())
         // {
         //     var ret = fminsearch(SPICY_COVID_NS.func_base_sum, Parms_collect, x, y, {maxIter:this.num_iterations/4,display:false, step_style: true, terms: 5, eval_func:SPICY_COVID_NS.eval_curve });

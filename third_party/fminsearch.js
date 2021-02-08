@@ -93,7 +93,10 @@ fminsearch=function(func,Parm0,x,y,Opt){// fun = function(x,Parm)
 
 	// silly multi-univariate screening
 	var eval_reverse = false;
-	for(var i=0;i<Opt.maxIter;i++){
+	var i = 0;
+	var r2 = 0;
+	while(i<Opt.maxIter && ((Opt.target_r2) ? (r2 < Opt.target_r2) : true)) {
+
 
 		for(var j=0;j<n;j++){ // take a step for each parameter
 
@@ -142,10 +145,15 @@ fminsearch=function(func,Parm0,x,y,Opt){// fun = function(x,Parm)
 				eval_reverse = false;
 			}
 			// inform(funcParm(P1),funParm(P0));
+
 		}
-		
+		r2 = r_squared(y, P0);
+		i++;
 		if(Opt.display){if(i>(Opt.maxIter-10)){console.log(i+1,funcParm(P0),P0)}}
 	}
+
+	inform(i + " cycles.")
+
 	if (!!document.getElementById('plot')){ // if there is then use it
 		fminsearch.plot(x,y,func(x,P0),P0);
 	}
