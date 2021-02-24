@@ -6,7 +6,8 @@
 
 //Original code from https://github.com/jonasalmeida/fminsearch
 
-fminsearch=function(func,Parm0,x,y,Opt){// fun = function(x,Parm)
+// fminsearch=function(func,Parm0,x,y,Opt){// fun = function(x,Parm)
+fminsearch=function(func, Parm0, x,y, Opt){// fun = function(x,Parm)
 	// example
 	//
 	// x = [32,37,42,47,52,57,62,67,72,77,82,87,92];y=[749,1525,1947,2201,2380,2537,2671,2758,2803,2943,3007,2979,2992]
@@ -105,7 +106,7 @@ fminsearch=function(func,Parm0,x,y,Opt){// fun = function(x,Parm)
 			
 			if (Opt.eval_func)
 			{
-				if (Opt.eval_func(j, Opt.terms, P1)) eval_reverse = true;
+				eval_reverse = Opt.eval_func(j, Opt.terms, P1);
 			}
 			
 			// if (Opt.step_style && j % 5 == 0) { //skip certain parameters for sum regression
