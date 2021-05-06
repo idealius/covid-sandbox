@@ -886,8 +886,8 @@ var SPICY_COVID_NS = {
 
             // }
             var curve = this.generated_curves[curve_index];
-            var P = SPICY_COVID_NS.generated_curves_sum.Parms.slice(curve.terms_index, curve.terms_index+curve.num_terms);
-            (function(cur){ //ugly hack to give the curve proper scope to hold the proper curve index within the loop
+            var _Parms = SPICY_COVID_NS.generated_curves_sum.Parms.slice(curve.terms_index, curve.terms_index+curve.num_terms);
+            (function(cur, P){ //ugly hack to give the curve proper scope to hold the proper curve index within the loop
                 SPICY_COVID_NS.generated_curves[curve_index].curve = SPICY_COVID_NS.board.create('functiongraph',
                 // [function(_x){ return SPICY_COVID_NS.fun_base(_x, SPICY_COVID_NS.generated_curves);},
                 // [function(_x){return SPICY_COVID_NS.func_base(_x, cur);},
@@ -902,7 +902,7 @@ var SPICY_COVID_NS = {
                     dash: 1,
                     strokewidth: 2
                 });
-            })(curve);
+            })(curve, _Parms);
 
             var str = "Function for Curve " + (curve_index+1) + ":\n";
             var Parms = curve.Parms.map(element => SPICY_COVID_NS.number_to_string(element)); //consider changing to forEach instead of creating new array
