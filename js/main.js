@@ -1691,7 +1691,7 @@ var SPICY_COVID_NS = {
     //Calls constructor for graphs[] where each graph's information is stored (including JSXGraph's) typically used with regions_of_interest[]
     add_region_to_graph: function(_selected_region_parent_data, _index, _context) {
         "use strict";
-  
+        inform(_selected_region_parent_data);
         //most cases we will automate the index to the last index of the array
         if (_index == -1) _index = _selected_region_parent_data.length-1;
         var _selected_region = _selected_region_parent_data[_index];
@@ -2040,8 +2040,8 @@ var SPICY_COVID_NS = {
         var run_length = _num_days;
 
         var _context = this.regions_of_interest[index].columns.affected_column;
-        // var _length = this.regions_of_interest[index].data.length
-        var _length = this.run;
+        var _length = this.regions_of_interest[index].data.length
+        //var _length = this.run;
         var _start = _length - _num_days;
         
 
@@ -2448,8 +2448,8 @@ var SPICY_COVID_NS = {
         var _data = _dataset;
         var _total = 0;
 
-        // for (var i = 0; i < _data.data.length; i++) {
-        for (var i = 0; i < this.run; i++) {
+        for (var i = 0; i < _data.data.length; i++) {
+        //for (var i = 0; i < this.run; i++) {
 
             if (_data.data[i][column_name] > result_point.y){
                 result_point.x = i;
