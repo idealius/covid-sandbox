@@ -37,7 +37,7 @@ A. When you Show the top N regions across the last X days. It prints out differe
 
 Q. Why does the "Generate Curves" button say "experimental".
 
-A. Some combination of "I'm working on it." or, "Results are not ideal." As of now, it works pretty well with many (most?) areas having R squared values higher than .99
+A. Some combination of "I'm working on it." or, "Results are not ideal." As of now, it is disabled.
 
 ### Major Bugs
 1/10/2021: BUG with west virginia and virginia and BUG Congo DR of Congo because names are inclusive (FIXED: 1/13/2021)
