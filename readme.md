@@ -1,8 +1,14 @@
 ![Logo](/img/Spicy_Covid_Graphs_Logo.png)
 
-Link: (http://covid19graphs.42web.io/index.html) <- Bookmark this manually, as it redirects to a new page every day to ensure the datasets are updated.
+5/27/2022 Update
 
-Datasets will normally be accessible maybe by 1 or 2 AM. I do not have a dedicated server to update the data so sometimes it will be late.
+For about 5 or 6 months the old public site had a limitation of 10MB files and I did not a find a solution to fix this quickly instead I will link to the github host which is locked in at 12/07/2021. The codebase should still work on a host that does not have a 10 MB limit
+
+(https://idealius.github.io/)
+
+<!-- Link: (http://covid19graphs.42web.io/index.html) <- Bookmark this manually, as it redirects to a new page every day to ensure the datasets are updated.
+
+Datasets will normally be accessible maybe by 1 or 2 AM. I do not have a dedicated server to update the data so sometimes it will be late. -->
 
 Datasets hinge on Johns Hopkins accuracy and file formats remaining the same. For instance around early December New Jersey's data was amplified to a great extent, errorneously, over one day. Johns Hopkins fixed the error within hours. In that spirit, I am not responsible for data misrepresentations in part or whole whether the fault of myself, the software, or their sources. 
 
