@@ -2,9 +2,11 @@
 
 5/27/2022 Update
 
-For about 5 or 6 months the old public site had a limitation of 10MB files and I did not a find a solution to fix this quickly instead I will link to the github host which is locked in at 12/07/2021. The codebase should still work on a host that does not have a 10 MB limit
+For about 5 or 6 months the old public site had a file size limitation of 10MB files and I did not a find a solution to fix this quickly. Instead, here is a link to the github host which is locked in at 12/07/2021. 
 
 (https://idealius.github.io/)
+
+The codebase should still work on a host that does not have a 10 MB limit -- after editing the index.html and main.html files so the host URL's make sense.
 
 <!-- Link: (http://covid19graphs.42web.io/index.html) <- Bookmark this manually, as it redirects to a new page every day to ensure the datasets are updated.
 
