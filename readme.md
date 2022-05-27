@@ -2,7 +2,7 @@
 
 5/27/2022 Update
 
-For about 5 or 6 months the old public site had a file size limitation of 10MB files and I did not a find a solution to fix this quickly. Instead, here is a link to the github host which is locked in at 12/07/2021. 
+For about 5 or 6 months the old public site had a file size limitation of 10MB files and I did not a find a solution to fix this quickly, and since I did not advertise the site to be used by the public I decided it wasn't worth fixing. Instead, here is a link to the github host which is locked in at 12/07/2021. 
 
 (https://idealius.github.io/)
 
