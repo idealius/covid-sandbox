@@ -12,9 +12,8 @@ The site will properly complain the data is too old and the codebase is slightly
 
 <!-- Link: (http://covid19graphs.42web.io/index.html) <- Bookmark this manually, as it redirects to a new page every day to ensure the datasets are updated.
 
-### Warranty:
-
 Datasets will normally be accessible maybe by 1 or 2 AM. I do not have a dedicated server to update the data so sometimes it will be late. -->
+### Warranty:
 
 Datasets hinge on Johns Hopkins accuracy and file formats remaining the same. For instance around early December New Jersey's data was amplified to a great extent, errorneously, over one day. Johns Hopkins fixed the error within hours. In that spirit, I am not responsible for data misrepresentations in part or whole whether the fault of myself, the software, or their sources. There is no warranty express or denied for any usage of this repository. A copy of this notice is required to be accessible for any version of this repository, its storage, its underlying processes, or its display. 
 
