@@ -6,7 +6,7 @@ For about 5 or 6 months the old public site had a file size limitation of 10MB f
 
 (https://idealius.github.io/)
 
-The site will properly complain the data is too old, the codebase is slightly older than the latest version, but it should be fully functional.
+The site will properly complain the data is too old and the codebase is slightly older than the latest version, but it should be fully functional.
 
 \**The codebase should still work on a host that does not have a 10 MB limit -- after editing the index.html and main.html files so the host URL's make sense.*
 
