@@ -1,26 +1,17 @@
 ![Logo](/img/Spicy_Covid_Graphs_Logo.png)
 
-5/27/2022 Update
+Link: (http://covid19graphs.42web.io/index.html) <- Bookmark this manually, as it redirects to a new page every day to ensure the datasets are updated.
 
-For about 5 or 6 months the old public site had a file size limitation of 10MB files and I did not a find a solution to fix this quickly. And, since I did not advertise the site in any significant capacity I decided it wasn't worth fixing.* Instead, here is a demo link to the github host which is locked in at 05/27/2022: 
+Datasets will normally be accessible maybe by 1 or 2 AM. I do not have a dedicated server to update the data so sometimes it will be late.
 
-(https://idealius.github.io/)
-
-The site will properly complain the data is too old and the codebase is slightly older than the latest version, but it should be fully functional.
-
-\**The codebase should still work on a host that does not have a 10 MB limit -- after editing the index.html and main.html files so the host URL's make sense.*
-
-<!-- Link: (http://covid19graphs.42web.io/index.html) <- Bookmark this manually, as it redirects to a new page every day to ensure the datasets are updated.
-
-Datasets will normally be accessible maybe by 1 or 2 AM. I do not have a dedicated server to update the data so sometimes it will be late. -->
-### License:
-
-Datasets hinge on Johns Hopkins accuracy and file formats remaining the same. For instance around early December 2021 New Jersey's data was amplified to a great extent, errorneously, over one day. Johns Hopkins fixed the error within hours. In that spirit, I am not responsible for data misrepresentations in part or whole whether the fault of myself, the software, or their sources. There is no warranty express or denied for any usage of this repository. A copy of this notice is required to be accessible for any version of this repository, its storage, its underlying processes, or its display. 
+Datasets hinge on Johns Hopkins accuracy and file formats remaining the same. For instance around early December New Jersey's data was amplified to a great extent, errorneously, over one day. Johns Hopkins fixed the error within hours. In that spirit, I am not responsible for data misrepresentations in part or whole whether the fault of myself, the software, or their sources. 
 
 ### Purpose:
 When doing personal risk assessment of COVID-19 in different contexts like local and global regions, other dashboards did not make it easy see regions overlayed and per population total with adjustable moving averages. To rectify this would involve a lot of copy/pasting and data transposing in spreadsheets like Excel. The Python project listed in sources below is used to transpose Johns Hopkins data and convert it to rates. This makes the data easy to use in Tableau, Excel, etc.
 
 This project then takes that data outputted from the Python project (which also converts the data to .js files) and allows one to quickly overlay different regions - by user selection - or by ranking across N number of days for cases and deaths.
+
+Please note that I am not a disease expert, nor even a very accredited programmer. This is a project I made for my own use, but also decided to share for those who might like to play with it. Use at your own risk.
 
 ### Features:
 Always shows data as percentage of population, so comparisons between regions is easier.
@@ -29,7 +20,7 @@ Zoom and panning.
 
 Rolling average slider.
 
-Filled curves option, sometimes easier on the eyes.
+Filled curves option, sometimes better for detecting patterns.
 
 Totals printed to text area for ranking comparison across N number of days.
 
