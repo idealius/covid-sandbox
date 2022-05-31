@@ -7,11 +7,11 @@ Datasets will normally be accessible maybe by 1 or 2 AM. I do not have a dedicat
 Datasets hinge on Johns Hopkins accuracy and file formats remaining the same. For instance around early December New Jersey's data was amplified to a great extent, errorneously, over one day. Johns Hopkins fixed the error within hours. In that spirit, I am not responsible for data misrepresentations in part or whole whether the fault of myself, the software, or their sources. 
 
 ### Purpose:
-When doing personal risk assessment of COVID-19 in different contexts like local and global regions, other dashboards did not make it easy see regions overlayed and per population total with adjustable moving averages. To rectify this would involve a lot of copy/pasting and data transposing in spreadsheets like Excel. The Python project listed in sources below is used to transpose Johns Hopkins data and convert it to rates. This makes the data easy to use in Tableau, Excel, etc.
+Early on during 2020 when doing personal risk assessment of COVID-19 in different contexts like local and global regions, other dashboards did not make it easy see regions overlayed and per population total with adjustable moving averages. To rectify this would involve a lot of copy/pasting and data transposing in spreadsheets like Excel. The Python project listed in sources below is used to transpose Johns Hopkins data and convert it to rates. This makes the data easy to use in Tableau, Excel, etc.
 
 This project then takes that data outputted from the Python project (which also converts the data to .js files) and allows one to quickly overlay different regions - by user selection - or by ranking across N number of days for cases and deaths.
 
-Please note that I am not a disease expert, nor even a very accredited programmer. This is a project I made for my own use, but also decided to share for those who might like to play with it. Use at your own risk.
+Use at your own risk.
 
 ### Features:
 Always shows data as percentage of population, so comparisons between regions is easier.
