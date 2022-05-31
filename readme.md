@@ -6,6 +6,11 @@ This is a working demo of this project locked in at 05/31/22:
 
 (https://idealius.github.io/)
 
+
+### Elevator version:
+
+JavaScript, some CSS, HTML, and Linux/Windows Shell scripts for a website that takes regularly updated CV19 data which has been transposed, Then it allows one to overlay multiple regions in the US or Internationally. Uses JSXGraph and JQuery combined with a technique to circumnavigate CORS restrictions, making it appropriate to use with a free web host.  It uses linear regression, but at one time supported polynomial regression with arbitrary number of terms to match multiple surges in one large piecewise function.
+
 ### Purpose:
 Early on during 2020 when doing personal risk assessment of COVID-19 in different contexts like local and global regions, other dashboards did not make it easy see regions overlayed and per population total with adjustable moving averages. To rectify this would involve a lot of copy/pasting and data transposing in spreadsheets like Excel. The Python project listed in sources below is used to transpose Johns Hopkins data and convert it to rates. This makes the data easy to use in Tableau, Excel, etc.
 
