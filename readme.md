@@ -15,7 +15,7 @@ JavaScript, some CSS, HTML, and Linux/Windows Shell scripts for a website that t
 ### Purpose:
 Early on during 2020 when doing personal risk assessment of COVID-19 in different contexts like local and global regions, other dashboards did not make it easy see regions overlayed and per population total with adjustable moving averages. To rectify this would involve a lot of copy/pasting and data transposing in spreadsheets like Excel. The Python project listed in sources below is used to transpose Johns Hopkins data and convert it to rates. This makes the data easy to use in Tableau, Excel, etc.
 
-This project then takes that data outputted from the Python project (which also converts the data to .js files) and allows one to quickly overlay different regions - by user selection - or by ranking across N number of days for cases and deaths to display on a dynamic website.
+This project then takes that data outputted from the Python project (which also converts the data to .js files) and allows one to quickly overlay different regions - by user selection - or by showing a number of regions by criteria like fastest rising in the last 21 days. This website works on mobile devices.
 
 I accept no liability for any damages that comes from the usage of this project or anything it implies. You are free to distribute it as long as you keep a copy of any liability or licensing information included.
 
