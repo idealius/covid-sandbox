@@ -6,6 +6,7 @@ This is a working demo of this project locked in at 05/31/22:
 
 (https://idealius.github.io/)
 
+This is essentially a COVID-19 nowcasting website, like this (https://www.covid19.uga.edu/nowcast.html) from the University of Georgia, except with less features, and much, much faster. It has polynomial regression prediction capabilities in it, which are still in the code, but disabled by default. By that time, there were so many free alternatives to authoritative institutions that it seemed like duplicating many other's work and therefore not a priority.
 
 ### Elevator version:
 
